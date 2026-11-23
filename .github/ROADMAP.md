@@ -2,7 +2,7 @@
 
 Plan por etapas. Se implementa una a la vez y cada etapa debe quedar ejecutable. Las reglas permanentes del proyecto están en `.github/copilot-instructions.md`.
 
-**Etapa actual:** 1
+**Etapa actual:** 3
 
 ## Objetivo del MVP
 
@@ -29,21 +29,21 @@ No invertir tiempo en animaciones ni diseño sofisticado hasta que lo funcional 
 
 ## Etapa 1 — Base del proyecto
 
-- [ ] Crear proyecto React + TypeScript + Vite.
-- [ ] Configurar MUI 7 con tema oscuro (preparado para tema claro).
-- [ ] Configurar React Router con las cuatro rutas.
-- [ ] Crear layout responsive con navegación.
-- [ ] Crear páginas vacías pero funcionales.
-- [ ] Configurar ESLint y Vitest.
+- [x] Crear proyecto React + TypeScript + Vite.
+- [x] Configurar MUI 7 con tema oscuro (preparado para tema claro).
+- [x] Configurar React Router con las cuatro rutas.
+- [x] Crear layout responsive con navegación.
+- [x] Crear páginas vacías pero funcionales.
+- [x] Configurar ESLint y Vitest.
 
 **Hecho cuando:** arranca sin errores, `tsc`, lint y build pasan, y se navega entre rutas en escritorio y móvil. No avanzar a persistencia ni a AniList hasta que esta estructura esté revisada.
 
 ## Etapa 2 — Persistencia local
 
-- [ ] Instalar y configurar Dexie y `dexie-react-hooks`.
-- [ ] Crear el esquema inicial (`library` y `watchedEpisodes`).
-- [ ] Implementar `anime.repository.ts`: agregar, consultar, actualizar y eliminar.
-- [ ] Pruebas del repositorio con `fake-indexeddb`.
+- [x] Instalar y configurar Dexie y `dexie-react-hooks`.
+- [x] Crear el esquema inicial (`library` y `watchedEpisodes`).
+- [x] Implementar `anime.repository.ts`: agregar, consultar, actualizar y eliminar.
+- [x] Pruebas del repositorio con `fake-indexeddb`.
 
 **Hecho cuando:** las operaciones del repositorio funcionan y están probadas, incluida la idempotencia de marcar episodios.
 
