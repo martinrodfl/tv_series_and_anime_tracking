@@ -1,5 +1,32 @@
 import { describe, expect, it } from 'vitest'
-import { describeAnime, getDisplayTitle } from './anime'
+import { describeAiringStatus, describeAnime, getDisplayTitle, hasSameMetadata } from './anime'
+
+describe('hasSameMetadata', () => {
+  const base = {
+    anilistId: 1,
+    title: { romaji: 'A', english: null },
+    coverUrl: null,
+    format: 'TV',
+    airingStatus: 'RELEASING',
+    episodes: null,
+    nextEpisode: 3,
+  }
+
+  it('detecta cambios en los campos que se guardan', () => {
+    expect(hasSameMetadata(base, { ...base })).toBe(true)
+    expect(hasSameMetadata(base, { ...base, nextEpisode: 4 })).toBe(false)
+    expect(hasSameMetadata(base, { ...base, episodes: 12 })).toBe(false)
+    expect(hasSameMetadata(base, { ...base, title: { romaji: 'A', english: 'B' } })).toBe(false)
+  })
+})
+
+describe('describeAiringStatus', () => {
+  it('traduce los estados conocidos y conserva los desconocidos', () => {
+    expect(describeAiringStatus('RELEASING')).toBe('En emisión')
+    expect(describeAiringStatus('OTRO')).toBe('OTRO')
+    expect(describeAiringStatus(null)).toBeNull()
+  })
+})
 
 describe('getDisplayTitle', () => {
   it('prefiere el título en inglés, luego el romaji y al final el id', () => {

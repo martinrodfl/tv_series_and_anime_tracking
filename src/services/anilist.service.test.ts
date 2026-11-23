@@ -132,3 +132,54 @@ describe('searchAnime', () => {
     await expect(service.searchAnime('x')).rejects.toMatchObject({ kind: 'invalid-response' })
   })
 })
+
+describe('getAnimeById', () => {
+  const media = {
+    id: 154587,
+    title: { romaji: 'Sousou no Frieren', english: 'Frieren' },
+    coverImage: { large: 'https://img/l.jpg' },
+    description: 'Primera línea.<br><br>\n(Fuente: <i>Alguien</i>)',
+    genres: ['Adventure', 'Drama', 42, ''],
+    episodes: 28,
+    nextAiringEpisode: null,
+    status: 'FINISHED',
+    format: 'TV',
+  }
+
+  it('pide el anime por id y devuelve metadatos, géneros y descripción en texto plano', async () => {
+    const { service, fetchMock } = serviceWith(async () => jsonResponse({ data: { Media: media } }))
+
+    const detail = await service.getAnimeById(154587)
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(JSON.parse(init.body as string).variables).toEqual({ id: 154587 })
+    expect(detail).toEqual({
+      anilistId: 154587,
+      title: { romaji: 'Sousou no Frieren', english: 'Frieren' },
+      coverUrl: 'https://img/l.jpg',
+      format: 'TV',
+      airingStatus: 'FINISHED',
+      episodes: 28,
+      nextEpisode: null,
+      genres: ['Adventure', 'Drama'],
+      description: 'Primera línea.\n\n(Fuente: Alguien)',
+    })
+  })
+
+  it('usa descripción nula y géneros vacíos cuando faltan', async () => {
+    const { service } = serviceWith(async () => jsonResponse({ data: { Media: { id: 3, description: '<br>' } } }))
+    expect(await service.getAnimeById(3)).toMatchObject({ description: null, genres: [] })
+  })
+
+  it('reporta not-found cuando AniList responde 404', async () => {
+    const { service } = serviceWith(async () =>
+      jsonResponse({ errors: [{ message: 'Not Found.', status: 404 }], data: { Media: null } }, { status: 404 }),
+    )
+    await expect(service.getAnimeById(999999999)).rejects.toMatchObject({ kind: 'not-found' })
+  })
+
+  it('rechaza una respuesta sin Media', async () => {
+    const { service } = serviceWith(async () => jsonResponse({ data: { Media: null } }))
+    await expect(service.getAnimeById(1)).rejects.toMatchObject({ kind: 'invalid-response' })
+  })
+})

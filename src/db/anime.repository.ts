@@ -84,6 +84,18 @@ export function createAnimeRepository(database: AnimeDatabase = defaultDb) {
       })
     },
 
+    /** Actualiza solo los metadatos de AniList (total, próximo episodio…); no toca datos personales ni `updatedAt`. */
+    async refreshMetadata(metadata: AnimeMetadata): Promise<void> {
+      await library.update(metadata.anilistId, {
+        title: metadata.title,
+        coverUrl: metadata.coverUrl,
+        format: metadata.format,
+        airingStatus: metadata.airingStatus,
+        episodes: metadata.episodes,
+        nextEpisode: metadata.nextEpisode,
+      })
+    },
+
     /** Elimina el anime y, en la misma transacción, sus episodios vistos. */
     async removeFromLibrary(anilistId: number): Promise<void> {
       await database.transaction('rw', [library, watchedEpisodes], async () => {

@@ -89,6 +89,29 @@ describe('biblioteca', () => {
     await expect(repo.updateLibraryEntry(99, { favorite: true })).rejects.toThrow(NotInLibraryError)
   })
 
+  it('refreshMetadata actualiza los metadatos sin tocar datos personales ni updatedAt', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(1000)
+    await repo.addToLibrary(anime(1, { episodes: null, nextEpisode: 5 }))
+    await repo.updateLibraryEntry(1, { userStatus: 'watching', favorite: true })
+    const before = await repo.getLibraryEntry(1)
+
+    vi.setSystemTime(9000)
+    await repo.refreshMetadata(anime(1, { episodes: 12, nextEpisode: null, airingStatus: 'FINISHED' }))
+
+    expect(await repo.getLibraryEntry(1)).toEqual({
+      ...before,
+      episodes: 12,
+      nextEpisode: null,
+      airingStatus: 'FINISHED',
+    })
+  })
+
+  it('refreshMetadata ignora los anime que no están en la biblioteca', async () => {
+    await repo.refreshMetadata(anime(99))
+    expect(await repo.getLibraryEntry(99)).toBeUndefined()
+  })
+
   it('quitar un anime borra también sus episodios vistos, y solo los suyos', async () => {
     await repo.addToLibrary(anime(1))
     await repo.addToLibrary(anime(2))

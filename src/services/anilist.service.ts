@@ -1,8 +1,8 @@
-import type { AnimeMetadata, SearchPage } from '../types/anime'
+import type { AnimeDetail, AnimeMetadata, SearchPage } from '../types/anime'
 
 const ANILIST_ENDPOINT = 'https://graphql.anilist.co'
 
-// Solo los campos que usan la búsqueda y la biblioteca.
+// Solo los campos que se necesitan en cada pantalla.
 const SEARCH_QUERY = `
 query ($search: String!, $page: Int!, $perPage: Int!) {
   Page(page: $page, perPage: $perPage) {
@@ -19,7 +19,28 @@ query ($search: String!, $page: Int!, $perPage: Int!) {
   }
 }`
 
-export type AniListErrorKind = 'network' | 'rate-limit' | 'http' | 'graphql' | 'invalid-response'
+const DETAIL_QUERY = `
+query ($id: Int!) {
+  Media(id: $id, type: ANIME) {
+    id
+    title { romaji english }
+    coverImage { large medium }
+    description(asHtml: false)
+    genres
+    episodes
+    nextAiringEpisode { episode }
+    status
+    format
+  }
+}`
+
+export type AniListErrorKind =
+  | 'network'
+  | 'rate-limit'
+  | 'http'
+  | 'graphql'
+  | 'not-found'
+  | 'invalid-response'
 
 export class AniListError extends Error {
   kind: AniListErrorKind
@@ -36,6 +57,10 @@ export class AniListError extends Error {
 export interface SearchOptions {
   page?: number
   perPage?: number
+  signal?: AbortSignal
+}
+
+export interface RequestOptions {
   signal?: AbortSignal
 }
 
@@ -84,11 +109,35 @@ function parseSearchPage(body: unknown, requestedPage: number): SearchPage {
   }
 }
 
+// AniList devuelve la descripción con etiquetas como <br> incluso sin pedir HTML: se reduce a texto plano.
+function toPlainText(raw: string | null): string | null {
+  if (raw === null) return null
+  const text = raw
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return text === '' ? null : text
+}
+
+function parseDetail(body: unknown): AnimeDetail {
+  const media = isRecord(body) && isRecord(body.data) ? body.data.Media : undefined
+  const metadata = parseMedia(media)
+  if (!metadata || !isRecord(media)) {
+    throw new AniListError('invalid-response', 'AniList devolvió una respuesta inesperada.')
+  }
+  const genres = Array.isArray(media.genres)
+    ? media.genres.map(asString).filter((genre): genre is string => genre !== null)
+    : []
+  return { ...metadata, description: toPlainText(asString(media.description)), genres }
+}
+
 // Una respuesta HTTP exitosa también puede traer `errors` de GraphQL.
-function graphQLErrorMessage(body: unknown): string | null {
+function parseGraphQLError(body: unknown): { message: string; status: unknown } | null {
   if (!isRecord(body) || !Array.isArray(body.errors) || body.errors.length === 0) return null
   const first: unknown = body.errors[0]
-  return (isRecord(first) ? asString(first.message) : null) ?? 'Error desconocido de AniList'
+  const record = isRecord(first) ? first : {}
+  return { message: asString(record.message) ?? 'Error desconocido de AniList', status: record.status }
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -105,43 +154,56 @@ function parseRetryAfter(response: Response): number | undefined {
 }
 
 export function createAniListService(fetchImpl: FetchLike = (input, init) => fetch(input, init)) {
+  async function request(query: string, variables: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
+    let response: Response
+    try {
+      response = await fetchImpl(ANILIST_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ query, variables }),
+        signal,
+      })
+    } catch (error) {
+      if (isAbortError(error)) throw error
+      throw new AniListError('network', 'No se pudo conectar con AniList. Revisa tu conexión.')
+    }
+
+    if (response.status === 429) {
+      const retryAfter = parseRetryAfter(response)
+      throw new AniListError(
+        'rate-limit',
+        retryAfter
+          ? `Demasiadas peticiones a AniList. Reintenta en ${retryAfter} s.`
+          : 'Demasiadas peticiones a AniList. Reintenta en un momento.',
+        retryAfter,
+      )
+    }
+
+    const body = await readJson(response)
+    const graphQLError = parseGraphQLError(body)
+    if (graphQLError) {
+      if (graphQLError.status === 404) {
+        throw new AniListError('not-found', 'No se encontró el anime en AniList.')
+      }
+      throw new AniListError('graphql', `AniList respondió con un error: ${graphQLError.message}`)
+    }
+    if (!response.ok) throw new AniListError('http', `AniList respondió con el estado ${response.status}.`)
+    return body
+  }
+
   return {
     async searchAnime(query: string, { page = 1, perPage = 10, signal }: SearchOptions = {}): Promise<SearchPage> {
       const search = query.trim()
       if (!search) return { items: [], page: 1, hasNextPage: false }
-
-      let response: Response
-      try {
-        response = await fetchImpl(ANILIST_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ query: SEARCH_QUERY, variables: { search, page, perPage } }),
-          signal,
-        })
-      } catch (error) {
-        if (isAbortError(error)) throw error
-        throw new AniListError('network', 'No se pudo conectar con AniList. Revisa tu conexión.')
-      }
-
-      if (response.status === 429) {
-        const retryAfter = parseRetryAfter(response)
-        throw new AniListError(
-          'rate-limit',
-          retryAfter
-            ? `Demasiadas peticiones a AniList. Reintenta en ${retryAfter} s.`
-            : 'Demasiadas peticiones a AniList. Reintenta en un momento.',
-          retryAfter,
-        )
-      }
-
-      const body = await readJson(response)
-      const graphQLError = graphQLErrorMessage(body)
-      if (graphQLError) throw new AniListError('graphql', `AniList respondió con un error: ${graphQLError}`)
-      if (!response.ok) throw new AniListError('http', `AniList respondió con el estado ${response.status}.`)
-
+      const body = await request(SEARCH_QUERY, { search, page, perPage }, signal)
       return parseSearchPage(body, page)
+    },
+
+    async getAnimeById(anilistId: number, { signal }: RequestOptions = {}): Promise<AnimeDetail> {
+      const body = await request(DETAIL_QUERY, { id: anilistId }, signal)
+      return parseDetail(body)
     },
   }
 }
 
-export const { searchAnime } = createAniListService()
+export const { searchAnime, getAnimeById } = createAniListService()

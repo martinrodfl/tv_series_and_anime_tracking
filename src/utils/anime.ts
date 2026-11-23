@@ -21,3 +21,28 @@ export function describeAnime(anime: Pick<AnimeMetadata, 'format' | 'episodes'>)
       : `${anime.episodes} ${anime.episodes === 1 ? 'episodio' : 'episodios'}`
   return [format, episodes].filter(Boolean).join(' · ')
 }
+
+export function hasSameMetadata(a: AnimeMetadata, b: AnimeMetadata): boolean {
+  return (
+    a.title.romaji === b.title.romaji &&
+    a.title.english === b.title.english &&
+    a.coverUrl === b.coverUrl &&
+    a.format === b.format &&
+    a.airingStatus === b.airingStatus &&
+    a.episodes === b.episodes &&
+    a.nextEpisode === b.nextEpisode
+  )
+}
+
+const AIRING_STATUS_LABELS: Record<string, string> = {
+  RELEASING: 'En emisión',
+  FINISHED: 'Finalizado',
+  NOT_YET_RELEASED: 'Sin estrenar',
+  CANCELLED: 'Cancelado',
+  HIATUS: 'En pausa',
+}
+
+export function describeAiringStatus(status: string | null): string | null {
+  if (status === null) return null
+  return AIRING_STATUS_LABELS[status] ?? status
+}

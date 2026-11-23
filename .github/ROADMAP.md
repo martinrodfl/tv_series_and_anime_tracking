@@ -2,7 +2,7 @@
 
 Plan por etapas. Se implementa una a la vez y cada etapa debe quedar ejecutable. Las reglas permanentes del proyecto están en `.github/copilot-instructions.md`.
 
-**Etapa actual:** 4
+**Etapa actual:** 5
 
 ## Objetivo del MVP
 
@@ -58,11 +58,11 @@ No invertir tiempo en animaciones ni diseño sofisticado hasta que lo funcional 
 
 ## Etapa 4 — Seguimiento
 
-- [ ] Implementar la pantalla de detalle.
-- [ ] Calcular episodios disponibles (`episodes` o `nextAiringEpisode`).
-- [ ] Mostrar lista de episodios o seguimiento numerado según los datos disponibles.
-- [ ] Marcar y desmarcar episodios.
-- [ ] Calcular el progreso localmente, con pruebas de `utils/progress.ts`.
+- [x] Implementar la pantalla de detalle.
+- [x] Calcular episodios disponibles (`episodes` o `nextAiringEpisode`).
+- [x] Mostrar lista de episodios o seguimiento numerado según los datos disponibles.
+- [x] Marcar y desmarcar episodios.
+- [x] Calcular el progreso localmente, con pruebas de `utils/progress.ts`.
 
 **Hecho cuando:** el progreso se actualiza al instante, sin llamadas a la API, y es correcto en los casos límite (sin total, en emisión, 0 disponibles).
 

@@ -39,3 +39,10 @@ export interface SearchPage {
   page: number
   hasNextPage: boolean
 }
+
+/** Datos para la pantalla de detalle; no se guardan en la biblioteca. */
+export interface AnimeDetail extends AnimeMetadata {
+  /** Texto plano, sin HTML. */
+  description: string | null
+  genres: string[]
+}
