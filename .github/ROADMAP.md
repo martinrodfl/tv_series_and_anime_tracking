@@ -2,7 +2,7 @@
 
 Plan por etapas. Se implementa una a la vez y cada etapa debe quedar ejecutable. Las reglas permanentes del proyecto están en `.github/copilot-instructions.md`.
 
-**Etapa actual:** 3
+**Etapa actual:** 4
 
 ## Objetivo del MVP
 
@@ -49,10 +49,10 @@ No invertir tiempo en animaciones ni diseño sofisticado hasta que lo funcional 
 
 ## Etapa 3 — AniList
 
-- [ ] Crear `anilist.service.ts` con búsqueda paginada.
-- [ ] Transformar las respuestas a tipos internos.
-- [ ] Manejar errores de red, `errors` de GraphQL y límites de peticiones.
-- [ ] Mostrar resultados en `/search` y permitir agregarlos a la biblioteca.
+- [x] Crear `anilist.service.ts` con búsqueda paginada.
+- [x] Transformar las respuestas a tipos internos.
+- [x] Manejar errores de red, `errors` de GraphQL y límites de peticiones.
+- [x] Mostrar resultados en `/search` y permitir agregarlos a la biblioteca.
 
 **Hecho cuando:** se busca, se agrega y el anime aparece en la biblioteca persistida.
 

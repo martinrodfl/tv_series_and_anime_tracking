@@ -32,3 +32,10 @@ export interface WatchedEpisode {
 
 /** Campos personales que el usuario puede modificar. */
 export type LibraryEntryChanges = Partial<Pick<LibraryEntry, 'userStatus' | 'favorite' | 'rating'>>
+
+/** Una página de resultados de búsqueda, ya en tipos internos. */
+export interface SearchPage {
+  items: AnimeMetadata[]
+  page: number
+  hasNextPage: boolean
+}

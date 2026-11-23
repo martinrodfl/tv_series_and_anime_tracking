@@ -1,0 +1,134 @@
+import { describe, expect, it, vi } from 'vitest'
+import { AniListError, createAniListService } from './anilist.service'
+
+const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
+  new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' }, ...init })
+
+const pageBody = (media: unknown[], pageInfo: unknown = { currentPage: 1, hasNextPage: true }) => ({
+  data: { Page: { pageInfo, media } },
+})
+
+const serviceWith = (fetchImpl: () => Promise<Response>) => {
+  const fetchMock = vi.fn(fetchImpl)
+  return { fetchMock, service: createAniListService(fetchMock) }
+}
+
+describe('searchAnime', () => {
+  it('envía la consulta paginada y transforma la respuesta a tipos internos', async () => {
+    const { service, fetchMock } = serviceWith(async () =>
+      jsonResponse(
+        pageBody([
+          {
+            id: 21,
+            title: { romaji: 'One Piece', english: null },
+            coverImage: { large: 'https://img/large.jpg', medium: 'https://img/medium.jpg' },
+            episodes: null,
+            nextAiringEpisode: { episode: 1100 },
+            status: 'RELEASING',
+            format: 'TV',
+          },
+        ]),
+      ),
+    )
+
+    const result = await service.searchAnime('  one piece ', { page: 2, perPage: 5 })
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('https://graphql.anilist.co')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string).variables).toEqual({ search: 'one piece', page: 2, perPage: 5 })
+    expect(result).toEqual({
+      page: 1,
+      hasNextPage: true,
+      items: [
+        {
+          anilistId: 21,
+          title: { romaji: 'One Piece', english: null },
+          coverUrl: 'https://img/large.jpg',
+          format: 'TV',
+          airingStatus: 'RELEASING',
+          episodes: null,
+          nextEpisode: 1100,
+        },
+      ],
+    })
+  })
+
+  it('usa valores nulos para campos ausentes o inválidos y descarta items sin id válido', async () => {
+    const { service } = serviceWith(async () =>
+      jsonResponse(pageBody([{ id: 5, episodes: 0, coverImage: { medium: 'https://img/m.jpg' } }, { id: 'x' }, null])),
+    )
+
+    const { items } = await service.searchAnime('x')
+
+    expect(items).toEqual([
+      {
+        anilistId: 5,
+        title: { romaji: null, english: null },
+        coverUrl: 'https://img/m.jpg',
+        format: null,
+        airingStatus: null,
+        episodes: null,
+        nextEpisode: null,
+      },
+    ])
+  })
+
+  it('no consulta la API con un texto vacío', async () => {
+    const { service, fetchMock } = serviceWith(async () => jsonResponse({}))
+    expect(await service.searchAnime('   ')).toEqual({ items: [], page: 1, hasNextPage: false })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('reporta los errors de GraphQL aunque el HTTP sea 200', async () => {
+    const { service } = serviceWith(async () => jsonResponse({ errors: [{ message: 'Boom' }], data: null }))
+    await expect(service.searchAnime('x')).rejects.toMatchObject({ kind: 'graphql', message: expect.stringContaining('Boom') })
+  })
+
+  it('reporta los errors de GraphQL en respuestas HTTP 400', async () => {
+    const { service } = serviceWith(async () => jsonResponse({ errors: [{ message: 'Bad query' }] }, { status: 400 }))
+    await expect(service.searchAnime('x')).rejects.toMatchObject({ kind: 'graphql' })
+  })
+
+  it('reporta el límite de peticiones con el tiempo de espera', async () => {
+    const { service } = serviceWith(async () => new Response('{}', { status: 429, headers: { 'Retry-After': '42' } }))
+    await expect(service.searchAnime('x')).rejects.toMatchObject({ kind: 'rate-limit', retryAfterSeconds: 42 })
+  })
+
+  it('reporta el límite de peticiones aunque falte Retry-After', async () => {
+    const { service } = serviceWith(async () => new Response('', { status: 429 }))
+    const error = await service.searchAnime('x').catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(AniListError)
+    expect(error).toMatchObject({ kind: 'rate-limit', retryAfterSeconds: undefined })
+  })
+
+  it('reporta otros errores HTTP', async () => {
+    const { service } = serviceWith(async () => new Response('oops', { status: 500 }))
+    await expect(service.searchAnime('x')).rejects.toMatchObject({ kind: 'http' })
+  })
+
+  it('reporta los fallos de red', async () => {
+    const { service } = serviceWith(async () => {
+      throw new TypeError('Failed to fetch')
+    })
+    await expect(service.searchAnime('x')).rejects.toMatchObject({ kind: 'network' })
+  })
+
+  it('propaga las cancelaciones sin convertirlas en errores de red', async () => {
+    const { service } = serviceWith(async () => {
+      throw new DOMException('Aborted', 'AbortError')
+    })
+    await expect(service.searchAnime('x')).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it.each([
+    ['sin data', {}],
+    ['sin media', { data: { Page: { pageInfo: {} } } }],
+    ['no es JSON', 'texto'],
+  ])('rechaza respuestas con forma inesperada (%s)', async (_name, body) => {
+    const { service } = serviceWith(async () =>
+      typeof body === 'string' ? new Response(body, { status: 200 }) : jsonResponse(body),
+    )
+    await expect(service.searchAnime('x')).rejects.toMatchObject({ kind: 'invalid-response' })
+  })
+})
