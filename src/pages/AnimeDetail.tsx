@@ -21,7 +21,13 @@ import { useAnimeDetail } from '../hooks/useAnimeDetail'
 import { useAnimeTracking } from '../hooks/useAnimeTracking'
 import { useNotice } from '../hooks/useNotice'
 import { USER_STATUSES, type AnimeMetadata } from '../types/anime'
-import { describeAiringStatus, describeAnime, getDisplayTitle, USER_STATUS_LABELS } from '../utils/anime'
+import {
+  coverImageUrl,
+  describeAiringStatus,
+  describeAnime,
+  getDisplayTitle,
+  USER_STATUS_LABELS,
+} from '../utils/anime'
 import { getAvailableEpisodes, shouldSuggestCompleted } from '../utils/progress'
 
 const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -111,8 +117,9 @@ function AnimeDetailContent({ anilistId }: { anilistId: number }) {
             {info.coverUrl ? (
               <Box
                 component="img"
-                src={info.coverUrl}
+                src={coverImageUrl(info.coverUrl)}
                 alt={`Portada de ${title}`}
+                crossOrigin="anonymous"
                 sx={{ width: '100%', maxWidth: 260, borderRadius: 1, display: 'block' }}
               />
             ) : (

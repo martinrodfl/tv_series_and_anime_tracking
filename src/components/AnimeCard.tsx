@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography'
 import type { ReactNode } from 'react'
 import { Link as RouterLink } from 'react-router'
 import type { AnimeMetadata } from '../types/anime'
-import { describeAnime, getDisplayTitle } from '../utils/anime'
+import { coverImageUrl, describeAnime, getDisplayTitle } from '../utils/anime'
 
 interface AnimeCardProps {
   anime: AnimeMetadata
@@ -25,9 +25,11 @@ export default function AnimeCard({ anime, action, children }: AnimeCardProps) {
       {anime.coverUrl ? (
         <CardMedia
           component="img"
-          image={anime.coverUrl}
+          image={coverImageUrl(anime.coverUrl)}
           alt={`Portada de ${title}`}
           loading="lazy"
+          // CORS para que el service worker pueda cachear la portada sin guardar una respuesta opaca.
+          crossOrigin="anonymous"
           sx={{ width: 96, flexShrink: 0, objectFit: 'cover' }}
         />
       ) : (

@@ -78,11 +78,11 @@ No invertir tiempo en animaciones ni diseño sofisticado hasta que lo funcional 
 
 ## Etapa 6 — PWA
 
-- [ ] Incorporar `vite-plugin-pwa`, manifest e iconos.
-- [ ] Cachear los recursos de la aplicación.
-- [ ] Definir una estrategia prudente para imágenes y recursos externos.
-- [ ] Verificar funcionamiento offline.
-- [ ] Probar la instalación en escritorio y celular.
+- [x] Incorporar `vite-plugin-pwa`, manifest e iconos.
+- [x] Cachear los recursos de la aplicación.
+- [x] Definir una estrategia prudente para imágenes y recursos externos: solo portadas de `*.anilist.co` (https, con CORS), máximo 150 y 30 días, solo respuestas 200; la API GraphQL nunca se cachea.
+- [x] Verificar funcionamiento offline.
+- [ ] Probar la instalación en escritorio y celular. (Chrome no reporta errores de manifest ni de instalabilidad; falta instalarla en un escritorio y un celular reales.)
 
 ## Criterios de aceptación del MVP
 
@@ -96,6 +96,6 @@ No invertir tiempo en animaciones ni diseño sofisticado hasta que lo funcional 
 
 ## Decisiones pendientes
 
-- Dónde se desplegará la app. Con `BrowserRouter` el hosting necesita fallback a `index.html`; en GitHub Pages haría falta `basename` o `HashRouter`.
-- Qué hacer con las portadas sin conexión (cachearlas o mostrar un marcador).
+- ~~Dónde se desplegará la app~~ Decidido: GitHub Pages en `/tv_series_and_anime_tracking/` (`base` en el build, `basename` en el router y `404.html` como fallback). Para otro hosting: `BASE_PATH=/ pnpm build`. Falta el flujo de publicación (p. ej. GitHub Actions).
+- ~~Qué hacer con las portadas sin conexión~~ Decidido: se cachean con límite (ver Etapa 6).
 - Fuente fiable de episodios detallados, si algún día se quiere ir más allá del seguimiento numerado.

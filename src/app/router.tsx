@@ -19,7 +19,8 @@ export const routes: RouteObject[] = [
   },
 ]
 
-export const router = createBrowserRouter(routes)
+// BASE_URL es «/» en desarrollo y la ruta del despliegue en producción (p. ej. GitHub Pages).
+export const router = createBrowserRouter(routes, { basename: import.meta.env.BASE_URL })
 
 export const createTestRouter = (initialEntries: string[]) =>
   createMemoryRouter(routes, { initialEntries })

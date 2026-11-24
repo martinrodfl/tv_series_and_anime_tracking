@@ -12,6 +12,18 @@ export function getDisplayTitle(anime: Pick<AnimeMetadata, 'anilistId' | 'title'
   return anime.title.english ?? anime.title.romaji ?? `Anime #${anime.anilistId}`
 }
 
+/**
+ * URL con la que se muestra una portada (con `crossOrigin="anonymous"`, para poder cachearla sin respuesta opaca).
+ * El CDN de AniList no envía `Vary: Origin`: una portada cargada antes SIN CORS queda en la caché HTTP sin cabeceras
+ * CORS y el navegador la bloquea al pedirla con CORS. El parámetro da una URL que nunca se cargó sin CORS;
+ * el CDN lo ignora y devuelve la misma imagen. En la biblioteca se sigue guardando la URL original.
+ */
+export function coverImageUrl(coverUrl: string): string {
+  const url = new URL(coverUrl)
+  url.searchParams.set('cors', '1')
+  return url.toString()
+}
+
 /** Texto corto con formato y total de episodios; no inventa el total si se desconoce. */
 export function describeAnime(anime: Pick<AnimeMetadata, 'format' | 'episodes'>): string {
   const format = anime.format?.replaceAll('_', ' ')

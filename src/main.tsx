@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 import { RouterProvider } from 'react-router'
 import { router } from './app/router'
+import { registerServiceWorker } from './app/pwa'
 import { darkTheme } from './app/theme'
 
 createRoot(document.getElementById('root')!).render(
@@ -13,3 +14,5 @@ createRoot(document.getElementById('root')!).render(
     </ThemeProvider>
   </StrictMode>,
 )
+
+registerServiceWorker()

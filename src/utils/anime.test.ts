@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { describeAiringStatus, describeAnime, getDisplayTitle, hasSameMetadata } from './anime'
+import { coverImageUrl, describeAiringStatus, describeAnime, getDisplayTitle, hasSameMetadata } from './anime'
+
+describe('coverImageUrl', () => {
+  it('añade el parámetro cors sin alterar el resto de la URL', () => {
+    expect(coverImageUrl('https://s4.anilist.co/file/x/bx1-abc.jpg')).toBe('https://s4.anilist.co/file/x/bx1-abc.jpg?cors=1')
+  })
+
+  it('conserva los parámetros existentes y es idempotente', () => {
+    expect(coverImageUrl('https://s4.anilist.co/a.jpg?v=2')).toBe('https://s4.anilist.co/a.jpg?v=2&cors=1')
+    expect(coverImageUrl(coverImageUrl('https://s4.anilist.co/a.jpg'))).toBe('https://s4.anilist.co/a.jpg?cors=1')
+  })
+})
 
 describe('hasSameMetadata', () => {
   const base = {
