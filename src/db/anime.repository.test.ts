@@ -33,6 +33,19 @@ describe('biblioteca', () => {
     expect(await repo.getLibraryEntry(1)).toEqual(entry)
   })
 
+  it('agregar guarda solo los metadatos mínimos aunque llegue un objeto con más campos', async () => {
+    const detail = { ...anime(1), description: 'texto largo', genres: ['Drama'] }
+
+    await repo.addToLibrary(detail)
+
+    expect(Object.keys((await repo.getLibraryEntry(1)) ?? {}).sort()).toEqual(
+      [
+        'addedAt', 'airingStatus', 'anilistId', 'coverUrl', 'episodes', 'favorite', 'format',
+        'nextEpisode', 'rating', 'title', 'updatedAt', 'userStatus',
+      ].sort(),
+    )
+  })
+
   it('agregar dos veces no sobrescribe los datos personales', async () => {
     await repo.addToLibrary(anime(1))
     await repo.updateLibraryEntry(1, { userStatus: 'watching', favorite: true, rating: 8 })
@@ -87,6 +100,29 @@ describe('biblioteca', () => {
 
   it('actualizar un anime inexistente falla', async () => {
     await expect(repo.updateLibraryEntry(99, { favorite: true })).rejects.toThrow(NotInLibraryError)
+  })
+
+  it('refreshMetadata actualiza los metadatos sin tocar datos personales ni updatedAt', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(1000)
+    await repo.addToLibrary(anime(1, { episodes: null, nextEpisode: 5 }))
+    await repo.updateLibraryEntry(1, { userStatus: 'watching', favorite: true })
+    const before = await repo.getLibraryEntry(1)
+
+    vi.setSystemTime(9000)
+    await repo.refreshMetadata(anime(1, { episodes: 12, nextEpisode: null, airingStatus: 'FINISHED' }))
+
+    expect(await repo.getLibraryEntry(1)).toEqual({
+      ...before,
+      episodes: 12,
+      nextEpisode: null,
+      airingStatus: 'FINISHED',
+    })
+  })
+
+  it('refreshMetadata ignora los anime que no están en la biblioteca', async () => {
+    await repo.refreshMetadata(anime(99))
+    expect(await repo.getLibraryEntry(99)).toBeUndefined()
   })
 
   it('quitar un anime borra también sus episodios vistos, y solo los suyos', async () => {
@@ -149,13 +185,105 @@ describe('episodios vistos', () => {
     expect((await repo.getLibraryEntry(1))?.updatedAt).toBe(3000)
   })
 
+  it('marcar un episodio no emitido falla y no guarda nada', async () => {
+    await repo.addToLibrary(anime(2, { episodes: 24, nextEpisode: 4 }))
+
+    await expect(repo.markEpisodeWatched(2, 4)).rejects.toThrow(RangeError)
+    await expect(repo.markEpisodeWatched(2, 30)).rejects.toThrow(RangeError)
+    expect(await repo.getWatchedEpisodes(2)).toEqual([])
+    expect((await repo.markEpisodeWatched(2, 3)).episodeNumber).toBe(3)
+  })
+
   it('no guarda episodios de un anime que no está en la biblioteca', async () => {
     await expect(repo.markEpisodeWatched(99, 1)).rejects.toThrow(NotInLibraryError)
     expect(await repo.getWatchedEpisodes(99)).toEqual([])
   })
 
-  it.each([0, -1, 1.5, Number.NaN])('rechaza el número de episodio %s', async (n) => {
+  it.each([0, -1, 1.5, Number.NaN, 10_001])('rechaza el número de episodio %s', async (n) => {
     await expect(repo.markEpisodeWatched(1, n)).rejects.toThrow(RangeError)
     await expect(repo.unmarkEpisodeWatched(1, n)).rejects.toThrow(RangeError)
+  })
+})
+
+describe('marcar hasta un episodio', () => {
+  it('marca solo los que faltan, conserva los ya vistos y es idempotente', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    await repo.addToLibrary(anime(1, { episodes: 12 }))
+    vi.setSystemTime(1000)
+    await repo.markEpisodeWatched(1, 2)
+    vi.setSystemTime(5000)
+
+    expect(await repo.markEpisodesUpTo(1, 4)).toBe(3)
+    expect(await repo.markEpisodesUpTo(1, 4)).toBe(0)
+
+    const watched = await repo.getWatchedEpisodes(1)
+    expect(watched.map((e) => e.episodeNumber)).toEqual([1, 2, 3, 4])
+    expect(watched.find((e) => e.episodeNumber === 2)?.watchedAt).toBe(1000)
+    expect(watched.find((e) => e.episodeNumber === 1)?.watchedAt).toBe(5000)
+    expect((await repo.getLibraryEntry(1))?.updatedAt).toBe(5000)
+  })
+
+  it('no cuenta episodios futuros de un anime en emisión', async () => {
+    await repo.addToLibrary(anime(1, { episodes: 24, nextEpisode: 4 }))
+    await expect(repo.markEpisodesUpTo(1, 4)).rejects.toThrow(RangeError)
+    expect(await repo.getWatchedEpisodes(1)).toEqual([])
+    expect(await repo.markEpisodesUpTo(1, 3)).toBe(3)
+  })
+
+  it('con total desconocido deja marcar hasta cualquier episodio válido', async () => {
+    await repo.addToLibrary(anime(1, { episodes: null, nextEpisode: null }))
+    expect(await repo.markEpisodesUpTo(1, 30)).toBe(30)
+  })
+
+  it('valida el número y que el anime esté en la biblioteca', async () => {
+    await repo.addToLibrary(anime(1))
+    await expect(repo.markEpisodesUpTo(1, 0)).rejects.toThrow(RangeError)
+    await expect(repo.markEpisodesUpTo(99, 1)).rejects.toThrow(NotInLibraryError)
+  })
+})
+
+describe('conteo y respaldo', () => {
+  it('cuenta los episodios vistos por anime', async () => {
+    await repo.addToLibrary(anime(1))
+    await repo.addToLibrary(anime(2))
+    await repo.addToLibrary(anime(3))
+    await repo.markEpisodesUpTo(1, 3)
+    await repo.markEpisodeWatched(2, 5)
+
+    expect(await repo.getWatchedCounts()).toEqual(
+      new Map([
+        [1, 3],
+        [2, 1],
+      ]),
+    )
+  })
+
+  it('exporta todo y la importación reemplaza los datos locales', async () => {
+    await repo.addToLibrary(anime(1))
+    await repo.markEpisodesUpTo(1, 2)
+    const exported = await repo.exportData()
+    expect(exported.library).toHaveLength(1)
+    expect(exported.watchedEpisodes).toHaveLength(2)
+
+    await repo.addToLibrary(anime(2))
+    await repo.markEpisodeWatched(2, 1)
+    await repo.importData(exported)
+
+    expect(await repo.listLibrary()).toEqual(exported.library)
+    expect(await repo.getWatchedEpisodes(1)).toHaveLength(2)
+    expect(await repo.getLibraryEntry(2)).toBeUndefined()
+    expect(await repo.getWatchedEpisodes(2)).toEqual([])
+  })
+
+  it('si la importación falla no se pierde nada', async () => {
+    await repo.addToLibrary(anime(1))
+    await repo.markEpisodeWatched(1, 1)
+    const [entry] = await repo.listLibrary()
+
+    // Un anime repetido hace fallar bulkAdd a mitad de la transacción.
+    await expect(repo.importData({ library: [entry, entry], watchedEpisodes: [] })).rejects.toThrow()
+
+    expect(await repo.listLibrary()).toEqual([entry])
+    expect(await repo.getWatchedEpisodes(1)).toHaveLength(1)
   })
 })

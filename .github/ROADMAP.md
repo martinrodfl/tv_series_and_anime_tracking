@@ -2,7 +2,7 @@
 
 Plan por etapas. Se implementa una a la vez y cada etapa debe quedar ejecutable. Las reglas permanentes del proyecto están en `.github/copilot-instructions.md`.
 
-**Etapa actual:** 1
+**Etapa actual:** 6
 
 ## Objetivo del MVP
 
@@ -29,49 +29,52 @@ No invertir tiempo en animaciones ni diseño sofisticado hasta que lo funcional 
 
 ## Etapa 1 — Base del proyecto
 
-- [ ] Crear proyecto React + TypeScript + Vite.
-- [ ] Configurar MUI 7 con tema oscuro (preparado para tema claro).
-- [ ] Configurar React Router con las cuatro rutas.
-- [ ] Crear layout responsive con navegación.
-- [ ] Crear páginas vacías pero funcionales.
-- [ ] Configurar ESLint y Vitest.
+- [x] Crear proyecto React + TypeScript + Vite.
+- [x] Configurar MUI 7 con tema oscuro (preparado para tema claro).
+- [x] Configurar React Router con las cuatro rutas.
+- [x] Crear layout responsive con navegación.
+- [x] Crear páginas vacías pero funcionales.
+- [x] Configurar ESLint y Vitest.
 
 **Hecho cuando:** arranca sin errores, `tsc`, lint y build pasan, y se navega entre rutas en escritorio y móvil. No avanzar a persistencia ni a AniList hasta que esta estructura esté revisada.
 
 ## Etapa 2 — Persistencia local
 
-- [ ] Instalar y configurar Dexie y `dexie-react-hooks`.
-- [ ] Crear el esquema inicial (`library` y `watchedEpisodes`).
-- [ ] Implementar `anime.repository.ts`: agregar, consultar, actualizar y eliminar.
-- [ ] Pruebas del repositorio con `fake-indexeddb`.
+- [x] Instalar y configurar Dexie y `dexie-react-hooks`.
+- [x] Crear el esquema inicial (`library` y `watchedEpisodes`).
+- [x] Implementar `anime.repository.ts`: agregar, consultar, actualizar y eliminar.
+- [x] Pruebas del repositorio con `fake-indexeddb`.
 
 **Hecho cuando:** las operaciones del repositorio funcionan y están probadas, incluida la idempotencia de marcar episodios.
 
 ## Etapa 3 — AniList
 
-- [ ] Crear `anilist.service.ts` con búsqueda paginada.
-- [ ] Transformar las respuestas a tipos internos.
-- [ ] Manejar errores de red, `errors` de GraphQL y límites de peticiones.
-- [ ] Mostrar resultados en `/search` y permitir agregarlos a la biblioteca.
+- [x] Crear `anilist.service.ts` con búsqueda paginada.
+- [x] Transformar las respuestas a tipos internos.
+- [x] Manejar errores de red, `errors` de GraphQL y límites de peticiones.
+- [x] Mostrar resultados en `/search` y permitir agregarlos a la biblioteca.
 
 **Hecho cuando:** se busca, se agrega y el anime aparece en la biblioteca persistida.
 
 ## Etapa 4 — Seguimiento
 
-- [ ] Implementar la pantalla de detalle.
-- [ ] Calcular episodios disponibles (`episodes` o `nextAiringEpisode`).
-- [ ] Mostrar lista de episodios o seguimiento numerado según los datos disponibles.
-- [ ] Marcar y desmarcar episodios.
-- [ ] Calcular el progreso localmente, con pruebas de `utils/progress.ts`.
+- [x] Implementar la pantalla de detalle.
+- [x] Calcular episodios disponibles (`episodes` o `nextAiringEpisode`).
+- [x] Mostrar lista de episodios o seguimiento numerado según los datos disponibles.
+- [x] Marcar y desmarcar episodios.
+- [x] Calcular el progreso localmente, con pruebas de `utils/progress.ts`.
 
 **Hecho cuando:** el progreso se actualiza al instante, sin llamadas a la API, y es correcto en los casos límite (sin total, en emisión, 0 disponibles).
 
 ## Etapa 5 — Funcionalidades complementarias
 
-- [ ] Favoritos y puntuación personal.
-- [ ] Filtros y ordenamiento en la biblioteca.
-- [ ] Inicio con resumen.
-- [ ] Exportación e importación JSON con validación y confirmación.
+- [x] Favoritos y puntuación personal.
+- [x] Quitar un anime de la biblioteca (desde el detalle y la biblioteca). Siempre pide confirmación; si tiene progreso registrado, el aviso lo indica y se borran también sus episodios vistos (el repositorio ya lo hace en una transacción).
+- [x] Marcar varios episodios a la vez (p. ej. «marcar hasta el episodio N») en series largas. Operación idempotente y en una transacción; no cuenta episodios futuros.
+- [x] Sugerir pasar a `completed` cuando el total es conocido, el anime no está en emisión y todos los episodios están vistos. Solo se sugiere: nunca se cambia el estado automáticamente.
+- [x] Filtros y ordenamiento en la biblioteca.
+- [x] Inicio con resumen.
+- [x] Exportación e importación JSON con validación y confirmación.
 
 ## Etapa 6 — PWA
 

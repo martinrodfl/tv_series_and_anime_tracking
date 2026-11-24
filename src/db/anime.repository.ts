@@ -5,6 +5,7 @@ import {
   type LibraryEntryChanges,
   type WatchedEpisode,
 } from '../types/anime'
+import { getAvailableEpisodes, MAX_EPISODE_NUMBER } from '../utils/progress'
 import { db as defaultDb, type AnimeDatabase } from './database'
 
 export class NotInLibraryError extends Error {
@@ -17,9 +18,22 @@ export class NotInLibraryError extends Error {
 const isPositiveInteger = (value: unknown): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value > 0
 
+// Solo se guardan los metadatos mínimos aunque llegue un objeto con más campos (p. ej. el detalle de AniList).
+function pickMetadata(metadata: AnimeMetadata): AnimeMetadata {
+  return {
+    anilistId: metadata.anilistId,
+    title: { romaji: metadata.title.romaji, english: metadata.title.english },
+    coverUrl: metadata.coverUrl,
+    format: metadata.format,
+    airingStatus: metadata.airingStatus,
+    episodes: metadata.episodes,
+    nextEpisode: metadata.nextEpisode,
+  }
+}
+
 function assertEpisodeNumber(episodeNumber: number) {
-  if (!isPositiveInteger(episodeNumber)) {
-    throw new RangeError('El número de episodio debe ser un entero positivo')
+  if (!isPositiveInteger(episodeNumber) || episodeNumber > MAX_EPISODE_NUMBER) {
+    throw new RangeError(`El número de episodio debe ser un entero entre 1 y ${MAX_EPISODE_NUMBER}`)
   }
 }
 
@@ -46,7 +60,7 @@ export function createAnimeRepository(database: AnimeDatabase = defaultDb) {
         if (existing) return existing
         const now = Date.now()
         const entry: LibraryEntry = {
-          ...metadata,
+          ...pickMetadata(metadata),
           userStatus: 'planned',
           favorite: false,
           rating: null,
@@ -84,6 +98,18 @@ export function createAnimeRepository(database: AnimeDatabase = defaultDb) {
       })
     },
 
+    /** Actualiza solo los metadatos de AniList (total, próximo episodio…); no toca datos personales ni `updatedAt`. */
+    async refreshMetadata(metadata: AnimeMetadata): Promise<void> {
+      await library.update(metadata.anilistId, {
+        title: metadata.title,
+        coverUrl: metadata.coverUrl,
+        format: metadata.format,
+        airingStatus: metadata.airingStatus,
+        episodes: metadata.episodes,
+        nextEpisode: metadata.nextEpisode,
+      })
+    },
+
     /** Elimina el anime y, en la misma transacción, sus episodios vistos. */
     async removeFromLibrary(anilistId: number): Promise<void> {
       await database.transaction('rw', [library, watchedEpisodes], async () => {
@@ -92,12 +118,16 @@ export function createAnimeRepository(database: AnimeDatabase = defaultDb) {
       })
     },
 
-    /** Idempotente: si el episodio ya estaba visto, conserva el `watchedAt` original. */
+    /** Idempotente: si el episodio ya estaba visto, conserva el `watchedAt` original. No acepta episodios aún no emitidos. */
     async markEpisodeWatched(anilistId: number, episodeNumber: number): Promise<WatchedEpisode> {
       assertEpisodeNumber(episodeNumber)
       return database.transaction('rw', [library, watchedEpisodes], async () => {
         const entry = await library.get(anilistId)
         if (!entry) throw new NotInLibraryError(anilistId)
+        const available = getAvailableEpisodes(entry)
+        if (available !== null && episodeNumber > available) {
+          throw new RangeError('No se pueden marcar episodios que aún no se emitieron')
+        }
         const existing = await watchedEpisodes.get([anilistId, episodeNumber])
         if (existing) return existing
         const now = Date.now()
@@ -105,6 +135,35 @@ export function createAnimeRepository(database: AnimeDatabase = defaultDb) {
         await watchedEpisodes.add(watched)
         await library.update(anilistId, { updatedAt: now })
         return watched
+      })
+    },
+
+    /**
+     * Marca los episodios 1..upTo que falten, en una transacción. Idempotente: los ya vistos conservan su `watchedAt`.
+     * Si se conoce cuántos episodios se emitieron, no deja pasar de ahí. Devuelve cuántos marcó.
+     */
+    async markEpisodesUpTo(anilistId: number, upTo: number): Promise<number> {
+      assertEpisodeNumber(upTo)
+      return database.transaction('rw', [library, watchedEpisodes], async () => {
+        const entry = await library.get(anilistId)
+        if (!entry) throw new NotInLibraryError(anilistId)
+        const available = getAvailableEpisodes(entry)
+        if (available !== null && upTo > available) {
+          throw new RangeError('No se pueden marcar episodios que aún no se emitieron')
+        }
+        const alreadyWatched = new Set(
+          (await watchedEpisodes.where('anilistId').equals(anilistId).toArray()).map((e) => e.episodeNumber),
+        )
+        const now = Date.now()
+        const missing: WatchedEpisode[] = []
+        for (let episodeNumber = 1; episodeNumber <= upTo; episodeNumber++) {
+          if (!alreadyWatched.has(episodeNumber)) missing.push({ anilistId, episodeNumber, watchedAt: now })
+        }
+        if (missing.length > 0) {
+          await watchedEpisodes.bulkAdd(missing)
+          await library.update(anilistId, { updatedAt: now })
+        }
+        return missing.length
       })
     },
 
@@ -123,6 +182,34 @@ export function createAnimeRepository(database: AnimeDatabase = defaultDb) {
     async getWatchedEpisodes(anilistId: number): Promise<WatchedEpisode[]> {
       const watched = await watchedEpisodes.where('anilistId').equals(anilistId).toArray()
       return watched.sort((a, b) => a.episodeNumber - b.episodeNumber)
+    },
+
+    /** Cantidad de episodios vistos por anime (solo los que tienen alguno). */
+    async getWatchedCounts(): Promise<Map<number, number>> {
+      const counts = new Map<number, number>()
+      for (const key of await watchedEpisodes.orderBy('anilistId').keys()) {
+        const anilistId = key as number
+        counts.set(anilistId, (counts.get(anilistId) ?? 0) + 1)
+      }
+      return counts
+    },
+
+    /** Todos los datos locales, leídos de forma consistente, para exportarlos. */
+    exportData(): Promise<{ library: LibraryEntry[]; watchedEpisodes: WatchedEpisode[] }> {
+      return database.transaction('r', [library, watchedEpisodes], async () => ({
+        library: await library.toArray(),
+        watchedEpisodes: await watchedEpisodes.toArray(),
+      }))
+    },
+
+    /** Reemplaza TODOS los datos locales por los recibidos (ya validados). Todo o nada. */
+    importData(data: { library: LibraryEntry[]; watchedEpisodes: WatchedEpisode[] }): Promise<void> {
+      return database.transaction('rw', [library, watchedEpisodes], async () => {
+        await watchedEpisodes.clear()
+        await library.clear()
+        await library.bulkAdd(data.library)
+        await watchedEpisodes.bulkAdd(data.watchedEpisodes)
+      })
     },
   }
 }

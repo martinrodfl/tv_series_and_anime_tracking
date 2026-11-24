@@ -32,3 +32,26 @@ export interface WatchedEpisode {
 
 /** Campos personales que el usuario puede modificar. */
 export type LibraryEntryChanges = Partial<Pick<LibraryEntry, 'userStatus' | 'favorite' | 'rating'>>
+
+/** Una página de resultados de búsqueda, ya en tipos internos. */
+export interface SearchPage {
+  items: AnimeMetadata[]
+  page: number
+  hasNextPage: boolean
+}
+
+/** Datos para la pantalla de detalle; no se guardan en la biblioteca. */
+export interface AnimeDetail extends AnimeMetadata {
+  /** Texto plano, sin HTML. */
+  description: string | null
+  genres: string[]
+}
+
+/** Contenido del archivo de respaldo JSON. */
+export interface BackupData {
+  app: 'anime-tracker'
+  version: 1
+  exportedAt: string
+  library: LibraryEntry[]
+  watchedEpisodes: WatchedEpisode[]
+}

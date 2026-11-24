@@ -6,6 +6,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createTestRouter } from './router'
 import { darkTheme } from './theme'
 
+// El detalle consulta AniList: aquí la petición queda pendiente para no salir a la red.
+vi.mock('../services/anilist.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/anilist.service')>()),
+  getAnimeById: vi.fn(() => new Promise(() => {})),
+}))
+
 function mockViewport(isDesktop: boolean) {
   vi.stubGlobal(
     'matchMedia',
@@ -43,10 +49,10 @@ describe('rutas', () => {
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument()
   })
 
-  it('/anime/:id muestra el id y rechaza ids inválidos', () => {
+  it('/anime/:id consulta el anime y rechaza ids inválidos', () => {
     mockViewport(true)
     const { unmount } = renderAt('/anime/21')
-    expect(screen.getByText(/Anime #21/)).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Cargando anime' })).toBeInTheDocument()
     unmount()
 
     renderAt('/anime/abc')
