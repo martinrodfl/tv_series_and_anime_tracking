@@ -63,7 +63,8 @@ function readTimestamp(value: unknown, path: string): number {
 
 function readCoverUrl(value: unknown, path: string): string | null {
   const url = readNullableString(value, path)
-  return url === null || /^https?:\/\//i.test(url) ? url : fail(path, 'debe ser una URL http(s) o null')
+  // Solo https: las portadas de AniList lo son, y así un respaldo ajeno no provoca peticiones inseguras.
+  return url === null || /^https:\/\//i.test(url) ? url : fail(path, 'debe ser una URL https o null')
 }
 
 function readUserStatus(value: unknown, path: string): UserStatus {

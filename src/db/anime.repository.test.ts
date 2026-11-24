@@ -185,6 +185,15 @@ describe('episodios vistos', () => {
     expect((await repo.getLibraryEntry(1))?.updatedAt).toBe(3000)
   })
 
+  it('marcar un episodio no emitido falla y no guarda nada', async () => {
+    await repo.addToLibrary(anime(2, { episodes: 24, nextEpisode: 4 }))
+
+    await expect(repo.markEpisodeWatched(2, 4)).rejects.toThrow(RangeError)
+    await expect(repo.markEpisodeWatched(2, 30)).rejects.toThrow(RangeError)
+    expect(await repo.getWatchedEpisodes(2)).toEqual([])
+    expect((await repo.markEpisodeWatched(2, 3)).episodeNumber).toBe(3)
+  })
+
   it('no guarda episodios de un anime que no está en la biblioteca', async () => {
     await expect(repo.markEpisodeWatched(99, 1)).rejects.toThrow(NotInLibraryError)
     expect(await repo.getWatchedEpisodes(99)).toEqual([])

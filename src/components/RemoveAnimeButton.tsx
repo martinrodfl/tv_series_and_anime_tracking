@@ -10,7 +10,7 @@ import { useState } from 'react'
 
 interface RemoveAnimeButtonProps {
   title: string
-  /** Episodios vistos registrados; si hay alguno se pide confirmación. */
+  /** Episodios vistos registrados; solo cambia el texto de la confirmación. */
   watchedCount: number
   variant?: 'icon' | 'text'
   onRemove: () => void
@@ -20,16 +20,14 @@ export default function RemoveAnimeButton({ title, watchedCount, variant = 'icon
   const [confirming, setConfirming] = useState(false)
   const label = `Quitar «${title}» de la biblioteca`
 
-  const handleClick = () => (watchedCount > 0 ? setConfirming(true) : onRemove())
-
   return (
     <>
       {variant === 'icon' ? (
-        <IconButton size="small" aria-label={label} onClick={handleClick}>
+        <IconButton size="small" aria-label={label} onClick={() => setConfirming(true)}>
           <DeleteOutlineIcon />
         </IconButton>
       ) : (
-        <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={handleClick}>
+        <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => setConfirming(true)}>
           Quitar de la biblioteca
         </Button>
       )}
@@ -38,8 +36,9 @@ export default function RemoveAnimeButton({ title, watchedCount, variant = 'icon
         <DialogTitle id="remove-dialog-title">¿Quitar de la biblioteca?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            «{title}» tiene {watchedCount} {watchedCount === 1 ? 'episodio visto registrado' : 'episodios vistos registrados'}.
-            Se borrarán junto con el anime y no se podrán recuperar.
+            {watchedCount > 0
+              ? `«${title}» tiene ${watchedCount} ${watchedCount === 1 ? 'episodio visto registrado' : 'episodios vistos registrados'}. Se borrarán junto con el anime y no se podrán recuperar.`
+              : `«${title}» se quitará de tu biblioteca junto con su estado, puntuación y favorito. No se podrá recuperar.`}
           </DialogContentText>
         </DialogContent>
         <DialogActions>

@@ -13,8 +13,9 @@ export default function FavoriteButton({ favorite, title, onToggle }: FavoriteBu
     <IconButton
       size="small"
       color={favorite ? 'error' : 'default'}
+      // Nombre fijo: el estado lo comunica aria-pressed, no el texto.
       aria-pressed={favorite}
-      aria-label={favorite ? `Quitar «${title}» de favoritos` : `Marcar «${title}» como favorito`}
+      aria-label={`Favorito: «${title}»`}
       onClick={() => onToggle(!favorite)}
     >
       {favorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}

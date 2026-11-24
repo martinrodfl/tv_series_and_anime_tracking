@@ -7,23 +7,19 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import DialogTitle from '@mui/material/DialogTitle'
 import Paper from '@mui/material/Paper'
-import Snackbar from '@mui/material/Snackbar'
 import Typography from '@mui/material/Typography'
 import { useRef, useState, type ChangeEvent } from 'react'
 import { useBackup } from '../hooks/useBackup'
+import { useNotice } from '../hooks/useNotice'
 import type { BackupData } from '../types/anime'
 import { BackupError } from '../utils/backup'
 import { downloadTextFile } from '../utils/download'
+import NoticeSnackbar from './NoticeSnackbar'
 
 interface BackupPanelProps {
   /** Datos locales actuales, para avisar de lo que reemplazará una importación. */
   currentAnime: number
   currentEpisodes: number
-}
-
-interface Notice {
-  severity: 'success' | 'error'
-  text: string
 }
 
 const plural = (count: number | undefined, one: string, many: string) => `${count} ${count === 1 ? one : many}`
@@ -35,17 +31,17 @@ export default function BackupPanel({ currentAnime, currentEpisodes }: BackupPan
   // El diálogo se cierra con animación: los datos pendientes se conservan hasta entonces.
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<Notice | null>(null)
+  const { notice, clearNotice, run } = useNotice()
 
-  const handleExport = async () => {
-    try {
-      const { filename, content } = await exportBackup()
-      downloadTextFile(filename, content)
-      setNotice({ severity: 'success', text: 'Copia de seguridad exportada.' })
-    } catch {
-      setNotice({ severity: 'error', text: 'No se pudo exportar la copia de seguridad.' })
-    }
-  }
+  const handleExport = () =>
+    run(
+      async () => {
+        const { filename, content } = await exportBackup()
+        downloadTextFile(filename, content)
+      },
+      'Copia de seguridad exportada.',
+      'No se pudo exportar la copia de seguridad.',
+    )
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -61,15 +57,14 @@ export default function BackupPanel({ currentAnime, currentEpisodes }: BackupPan
     }
   }
 
-  const handleConfirmImport = async () => {
+  const handleConfirmImport = () => {
     setConfirmOpen(false)
     if (!pending) return
-    try {
-      await importBackup(pending)
-      setNotice({ severity: 'success', text: 'Copia de seguridad importada.' })
-    } catch {
-      setNotice({ severity: 'error', text: 'No se pudo importar; tus datos actuales no se modificaron.' })
-    }
+    return run(
+      () => importBackup(pending),
+      'Copia de seguridad importada.',
+      'No se pudo importar; tus datos actuales no se modificaron.',
+    )
   }
 
   return (
@@ -122,13 +117,7 @@ export default function BackupPanel({ currentAnime, currentEpisodes }: BackupPan
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={notice !== null} autoHideDuration={4000} onClose={() => setNotice(null)}>
-        {notice ? (
-          <Alert severity={notice.severity} onClose={() => setNotice(null)} variant="filled">
-            {notice.text}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
+      <NoticeSnackbar notice={notice} onClose={clearNotice} />
     </Paper>
   )
 }

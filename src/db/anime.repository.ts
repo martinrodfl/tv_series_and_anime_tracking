@@ -118,12 +118,16 @@ export function createAnimeRepository(database: AnimeDatabase = defaultDb) {
       })
     },
 
-    /** Idempotente: si el episodio ya estaba visto, conserva el `watchedAt` original. */
+    /** Idempotente: si el episodio ya estaba visto, conserva el `watchedAt` original. No acepta episodios aún no emitidos. */
     async markEpisodeWatched(anilistId: number, episodeNumber: number): Promise<WatchedEpisode> {
       assertEpisodeNumber(episodeNumber)
       return database.transaction('rw', [library, watchedEpisodes], async () => {
         const entry = await library.get(anilistId)
         if (!entry) throw new NotInLibraryError(anilistId)
+        const available = getAvailableEpisodes(entry)
+        if (available !== null && episodeNumber > available) {
+          throw new RangeError('No se pueden marcar episodios que aún no se emitieron')
+        }
         const existing = await watchedEpisodes.get([anilistId, episodeNumber])
         if (existing) return existing
         const now = Date.now()

@@ -7,21 +7,17 @@ import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
-import Snackbar from '@mui/material/Snackbar'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import AnimeCard from '../components/AnimeCard'
+import NoticeSnackbar from '../components/NoticeSnackbar'
 import { useAnimeSearch } from '../hooks/useAnimeSearch'
 import { useLibrary } from '../hooks/useLibrary'
+import { useNotice } from '../hooks/useNotice'
 import type { AnimeMetadata } from '../types/anime'
 import { getDisplayTitle } from '../utils/anime'
-
-interface Notice {
-  severity: 'success' | 'error'
-  text: string
-}
 
 function parsePage(value: string | null): number {
   const page = Number(value)
@@ -65,20 +61,19 @@ export default function Search() {
 
   const { state, retry } = useAnimeSearch(query, page)
   const library = useLibrary()
-  const [notice, setNotice] = useState<Notice | null>(null)
+  const { notice, clearNotice, run } = useNotice()
 
   const addedIds = new Set(library.entries.map((entry) => entry.anilistId))
 
   const goToPage = (nextPage: number) => setParams({ q: query, page: String(nextPage) })
 
-  const handleAdd = async (anime: AnimeMetadata) => {
+  const handleAdd = (anime: AnimeMetadata) => {
     const title = getDisplayTitle(anime)
-    try {
-      await library.addAnime(anime)
-      setNotice({ severity: 'success', text: `«${title}» se agregó a la biblioteca.` })
-    } catch {
-      setNotice({ severity: 'error', text: `No se pudo agregar «${title}» a la biblioteca.` })
-    }
+    return run(
+      () => library.addAnime(anime),
+      `«${title}» se agregó a la biblioteca.`,
+      `No se pudo agregar «${title}» a la biblioteca.`,
+    )
   }
 
   return (
@@ -166,13 +161,7 @@ export default function Search() {
         </>
       )}
 
-      <Snackbar open={notice !== null} autoHideDuration={4000} onClose={() => setNotice(null)}>
-        {notice ? (
-          <Alert severity={notice.severity} onClose={() => setNotice(null)} variant="filled">
-            {notice.text}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
+      <NoticeSnackbar notice={notice} onClose={clearNotice} />
     </>
   )
 }

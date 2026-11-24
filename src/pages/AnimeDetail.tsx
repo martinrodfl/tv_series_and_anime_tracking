@@ -10,26 +10,21 @@ import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
 import Select from '@mui/material/Select'
-import Snackbar from '@mui/material/Snackbar'
 import Typography from '@mui/material/Typography'
-import { useState } from 'react'
 import { Link as RouterLink, useParams } from 'react-router'
 import EpisodeTracker from '../components/EpisodeTracker'
 import FavoriteButton from '../components/FavoriteButton'
+import NoticeSnackbar from '../components/NoticeSnackbar'
 import ProgressSummary from '../components/ProgressSummary'
 import RemoveAnimeButton from '../components/RemoveAnimeButton'
 import { useAnimeDetail } from '../hooks/useAnimeDetail'
 import { useAnimeTracking } from '../hooks/useAnimeTracking'
+import { useNotice } from '../hooks/useNotice'
 import { USER_STATUSES, type AnimeMetadata } from '../types/anime'
 import { describeAiringStatus, describeAnime, getDisplayTitle, USER_STATUS_LABELS } from '../utils/anime'
 import { getAvailableEpisodes, shouldSuggestCompleted } from '../utils/progress'
 
 const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-interface Notice {
-  severity: 'success' | 'error'
-  text: string
-}
 
 function parseAnimeId(value: string | undefined): number | null {
   return value !== undefined && /^[1-9]\d*$/.test(value) ? Number(value) : null
@@ -68,22 +63,13 @@ function AnimeDetailContent({ anilistId }: { anilistId: number }) {
   const detail = useAnimeDetail(anilistId)
   const remote = detail.state.status === 'success' ? detail.state.data : null
   const tracking = useAnimeTracking(anilistId, remote)
-  const [notice, setNotice] = useState<Notice | null>(null)
+  const { notice, clearNotice, run } = useNotice()
 
   const { entry } = tracking
   // Datos de AniList si llegaron; si no (p. ej. sin conexión), los guardados en la biblioteca.
   const info: AnimeMetadata | null = remote ?? entry ?? null
   const title = info ? getDisplayTitle(info) : 'Detalle del anime'
   const available = info ? getAvailableEpisodes(info) : null
-
-  const run = async (action: () => Promise<unknown>, success: string | null, failure: string) => {
-    try {
-      await action()
-      if (success) setNotice({ severity: 'success', text: success })
-    } catch {
-      setNotice({ severity: 'error', text: failure })
-    }
-  }
 
   return (
     <>
@@ -307,13 +293,7 @@ function AnimeDetailContent({ anilistId }: { anilistId: number }) {
 
       <BackLink />
 
-      <Snackbar open={notice !== null} autoHideDuration={4000} onClose={() => setNotice(null)}>
-        {notice ? (
-          <Alert severity={notice.severity} onClose={() => setNotice(null)} variant="filled">
-            {notice.text}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
+      <NoticeSnackbar notice={notice} onClose={clearNotice} />
     </>
   )
 }

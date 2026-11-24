@@ -25,8 +25,9 @@ export function calculateProgress(watchedCount: number, available: number | null
 /** Texto corto de progreso para listas. */
 export function describeProgress(watchedCount: number, available: number | null): string {
   const progress = calculateProgress(watchedCount, available)
-  if (progress === null) return 'Progreso no disponible'
-  return `${watchedCount} / ${available} (${Math.round(progress)} %)`
+  if (progress === null || available === null) return 'Progreso no disponible'
+  // Nunca se muestran más vistos que emitidos (p. ej. si el total se corrigió a la baja).
+  return `${Math.min(watchedCount, available)} / ${available} (${Math.round(progress)} %)`
 }
 
 /**

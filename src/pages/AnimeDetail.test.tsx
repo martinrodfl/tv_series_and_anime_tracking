@@ -189,7 +189,7 @@ describe('/anime/:id: funciones complementarias', () => {
     const user = userEvent.setup()
     renderDetail()
 
-    await user.click(await screen.findByRole('button', { name: 'Marcar «Frieren» como favorito' }))
+    await user.click(await screen.findByRole('button', { name: 'Favorito: «Frieren»' }))
     await user.click(screen.getByRole('combobox', { name: 'Puntuación' }))
     await user.click(await screen.findByRole('option', { name: '8 / 10' }))
 
@@ -264,13 +264,21 @@ describe('/anime/:id: funciones complementarias', () => {
     expect(await screen.findByRole('button', { name: 'Agregar a la biblioteca' })).toBeInTheDocument()
   })
 
-  it('quita directamente un anime sin progreso', async () => {
+  it('quita un anime sin progreso solo tras confirmar', async () => {
     const user = userEvent.setup()
     renderDetail()
 
     await user.click(await screen.findByRole('button', { name: 'Quitar de la biblioteca' }))
+    const dialog = await screen.findByRole('dialog', { name: '¿Quitar de la biblioteca?' })
+    expect(await animeRepository.getLibraryEntry(10)).toBeDefined()
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await animeRepository.getLibraryEntry(10)).toBeDefined()
+
+    await user.click(screen.getByRole('button', { name: 'Quitar de la biblioteca' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Quitar' }))
+
     await waitFor(async () => expect(await animeRepository.getLibraryEntry(10)).toBeUndefined())
   })
 })

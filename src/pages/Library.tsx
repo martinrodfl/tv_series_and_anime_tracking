@@ -8,16 +8,16 @@ import Grid from '@mui/material/Grid'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
-import Snackbar from '@mui/material/Snackbar'
 import TextField from '@mui/material/TextField'
 import ToggleButton from '@mui/material/ToggleButton'
 import Typography from '@mui/material/Typography'
-import { useState } from 'react'
 import { Link as RouterLink, useSearchParams } from 'react-router'
 import AnimeCard from '../components/AnimeCard'
 import FavoriteButton from '../components/FavoriteButton'
+import NoticeSnackbar from '../components/NoticeSnackbar'
 import RemoveAnimeButton from '../components/RemoveAnimeButton'
 import { useLibrary } from '../hooks/useLibrary'
+import { useNotice } from '../hooks/useNotice'
 import { USER_STATUSES, type LibraryEntry } from '../types/anime'
 import { getDisplayTitle, USER_STATUS_LABELS } from '../utils/anime'
 import {
@@ -28,11 +28,6 @@ import {
   type LibraryFilters,
 } from '../utils/library'
 import { describeProgress, getAvailableEpisodes } from '../utils/progress'
-
-interface Notice {
-  severity: 'success' | 'error'
-  text: string
-}
 
 function readFilters(params: URLSearchParams): LibraryFilters {
   return {
@@ -56,7 +51,7 @@ function writeFilters(filters: LibraryFilters): URLSearchParams {
 export default function Library() {
   const { status, entries, watchedCounts, setFavorite, removeAnime } = useLibrary()
   const [params, setParams] = useSearchParams()
-  const [notice, setNotice] = useState<Notice | null>(null)
+  const { notice, clearNotice, run } = useNotice()
 
   const filters = readFilters(params)
   const visible = filterAndSortLibrary(entries, filters)
@@ -64,15 +59,6 @@ export default function Library() {
 
   const updateFilters = (changes: Partial<LibraryFilters>) =>
     setParams(writeFilters({ ...filters, ...changes }), { replace: true })
-
-  const run = async (action: () => Promise<unknown>, success: string | null, failure: string) => {
-    try {
-      await action()
-      if (success) setNotice({ severity: 'success', text: success })
-    } catch {
-      setNotice({ severity: 'error', text: failure })
-    }
-  }
 
   const renderEntry = (entry: LibraryEntry) => {
     const title = getDisplayTitle(entry)
@@ -226,13 +212,7 @@ export default function Library() {
         </>
       )}
 
-      <Snackbar open={notice !== null} autoHideDuration={4000} onClose={() => setNotice(null)}>
-        {notice ? (
-          <Alert severity={notice.severity} onClose={() => setNotice(null)} variant="filled">
-            {notice.text}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
+      <NoticeSnackbar notice={notice} onClose={clearNotice} />
     </>
   )
 }

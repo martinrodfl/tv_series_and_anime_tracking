@@ -11,7 +11,7 @@ interface ProgressSummaryProps {
 export default function ProgressSummary({ watchedCount, available }: ProgressSummaryProps) {
   const progress = calculateProgress(watchedCount, available)
 
-  if (progress === null) {
+  if (progress === null || available === null) {
     return (
       <Box>
         <Typography variant="subtitle2">Progreso</Typography>
@@ -38,7 +38,7 @@ export default function ProgressSummary({ watchedCount, available }: ProgressSum
       <Typography color="text.secondary">
         {available === 0
           ? 'Aún no se emitió ningún episodio.'
-          : `${watchedCount} de ${available} episodios vistos (${percent} %)`}
+          : `${Math.min(watchedCount, available)} de ${available} episodios vistos (${percent} %)`}
       </Typography>
     </Box>
   )

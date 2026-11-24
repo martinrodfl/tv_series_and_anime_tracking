@@ -108,26 +108,28 @@ describe('/library', () => {
     const user = userEvent.setup()
     renderLibrary()
 
-    await user.click(await screen.findByRole('button', { name: 'Marcar «Akira» como favorito' }))
+    await user.click(await screen.findByRole('button', { name: 'Favorito: «Akira»' }))
 
     await waitFor(async () => expect((await animeRepository.getLibraryEntry(3))?.favorite).toBe(true))
-    expect(await screen.findByRole('button', { name: 'Quitar «Akira» de favoritos' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Favorito: «Akira»' })).toHaveAttribute('aria-pressed', 'true'))
   })
 
-  it('quita sin confirmar un anime sin progreso', async () => {
+  it('quita un anime sin progreso solo tras confirmar', async () => {
     const user = userEvent.setup()
     renderLibrary()
 
     await user.click(await screen.findByRole('button', { name: 'Quitar «Akira» de la biblioteca' }))
+    const dialog = await screen.findByRole('dialog', { name: '¿Quitar de la biblioteca?' })
+    expect(dialog).toHaveTextContent('se quitará de tu biblioteca junto con su estado, puntuación y favorito')
+    expect(await animeRepository.getLibraryEntry(3)).toBeDefined()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar' }))
 
     await waitFor(async () => expect(await animeRepository.getLibraryEntry(3)).toBeUndefined())
     await waitFor(() => expect(titles()).not.toContain('Akira'))
   })
 
-  it('pide confirmación si hay progreso: cancelar no borra y confirmar borra también los episodios', async () => {
+  it('con progreso la confirmación lo indica: cancelar no borra y confirmar borra también los episodios', async () => {
     const user = userEvent.setup()
     renderLibrary()
 

@@ -10,6 +10,10 @@ describe('describeProgress', () => {
   it('indica que no está disponible si no se conoce el total', () => {
     expect(describeProgress(4, null)).toBe('Progreso no disponible')
   })
+
+  it('nunca muestra más vistos que episodios emitidos', () => {
+    expect(describeProgress(15, 12)).toBe('12 / 12 (100 %)')
+  })
 })
 
 describe('shouldSuggestCompleted', () => {
