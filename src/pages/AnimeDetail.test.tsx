@@ -178,3 +178,99 @@ describe('/anime/:id', () => {
     expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()
   })
 })
+
+describe('/anime/:id: funciones complementarias', () => {
+  beforeEach(async () => {
+    getAnimeById.mockResolvedValue(detailOf())
+    await animeRepository.addToLibrary(detailOf())
+  })
+
+  it('cambia el favorito y la puntuación, y se guardan', async () => {
+    const user = userEvent.setup()
+    renderDetail()
+
+    await user.click(await screen.findByRole('button', { name: 'Marcar «Frieren» como favorito' }))
+    await user.click(screen.getByRole('combobox', { name: 'Puntuación' }))
+    await user.click(await screen.findByRole('option', { name: '8 / 10' }))
+
+    await waitFor(async () => expect(await animeRepository.getLibraryEntry(10)).toMatchObject({ favorite: true, rating: 8 }))
+
+    await user.click(screen.getByRole('combobox', { name: 'Puntuación' }))
+    await user.click(await screen.findByRole('option', { name: 'Sin puntuar' }))
+    await waitFor(async () => expect((await animeRepository.getLibraryEntry(10))?.rating).toBeNull())
+  })
+
+  it('marca hasta un episodio de una vez y no deja pasar de los emitidos', async () => {
+    const user = userEvent.setup()
+    renderDetail()
+    const input = await screen.findByRole('spinbutton', { name: 'Marcar hasta el episodio' })
+
+    await user.type(input, '3')
+    await user.click(screen.getByRole('button', { name: 'Marcar hasta aquí' }))
+
+    expect(await progressText('3 de 4 episodios vistos (75 %)')).toBeInTheDocument()
+    expect((await animeRepository.getWatchedEpisodes(10)).map((e) => e.episodeNumber)).toEqual([1, 2, 3])
+
+    await user.type(screen.getByRole('spinbutton', { name: 'Marcar hasta el episodio' }), '5')
+    await user.click(screen.getByRole('button', { name: 'Marcar hasta aquí' }))
+    expect(screen.getByText('Escribe un entero entre 1 y 4.')).toBeInTheDocument()
+    expect(await animeRepository.getWatchedEpisodes(10)).toHaveLength(3)
+  })
+
+  it('sugiere completar al ver todo, y solo cambia el estado si el usuario acepta', async () => {
+    const user = userEvent.setup()
+    renderDetail()
+    await screen.findByRole('spinbutton', { name: 'Marcar hasta el episodio' })
+    expect(screen.queryByText(/¿Quieres marcar el anime como completado\?/)).not.toBeInTheDocument()
+
+    await user.type(screen.getByRole('spinbutton', { name: 'Marcar hasta el episodio' }), '4')
+    await user.click(screen.getByRole('button', { name: 'Marcar hasta aquí' }))
+
+    expect(await screen.findByText(/¿Quieres marcar el anime como completado\?/)).toBeInTheDocument()
+    expect((await animeRepository.getLibraryEntry(10))?.userStatus).toBe('planned')
+
+    await user.click(screen.getByRole('button', { name: 'Marcar como completado' }))
+
+    await waitFor(async () => expect((await animeRepository.getLibraryEntry(10))?.userStatus).toBe('completed'))
+    await waitFor(() => expect(screen.queryByText(/¿Quieres marcar el anime como completado\?/)).not.toBeInTheDocument())
+  })
+
+  it('no sugiere completar un anime en emisión aunque se vean todos los emitidos', async () => {
+    getAnimeById.mockResolvedValue(detailOf({ episodes: 12, nextEpisode: 3, airingStatus: 'RELEASING' }))
+    const user = userEvent.setup()
+    renderDetail()
+
+    await user.type(await screen.findByRole('spinbutton', { name: 'Marcar hasta el episodio' }), '2')
+    await user.click(screen.getByRole('button', { name: 'Marcar hasta aquí' }))
+
+    expect(await progressText('2 de 2 episodios vistos (100 %)')).toBeInTheDocument()
+    expect(screen.queryByText(/¿Quieres marcar el anime como completado\?/)).not.toBeInTheDocument()
+  })
+
+  it('pide confirmación para quitar un anime con progreso y borra también los episodios', async () => {
+    await animeRepository.markEpisodesUpTo(10, 2)
+    const user = userEvent.setup()
+    renderDetail()
+
+    await user.click(await screen.findByRole('button', { name: 'Quitar de la biblioteca' }))
+    const dialog = await screen.findByRole('dialog', { name: '¿Quitar de la biblioteca?' })
+    expect(dialog).toHaveTextContent('2 episodios vistos registrados')
+    expect(await animeRepository.getLibraryEntry(10)).toBeDefined()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar' }))
+
+    await waitFor(async () => expect(await animeRepository.getLibraryEntry(10)).toBeUndefined())
+    expect(await animeRepository.getWatchedEpisodes(10)).toEqual([])
+    expect(await screen.findByRole('button', { name: 'Agregar a la biblioteca' })).toBeInTheDocument()
+  })
+
+  it('quita directamente un anime sin progreso', async () => {
+    const user = userEvent.setup()
+    renderDetail()
+
+    await user.click(await screen.findByRole('button', { name: 'Quitar de la biblioteca' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(async () => expect(await animeRepository.getLibraryEntry(10)).toBeUndefined())
+  })
+})

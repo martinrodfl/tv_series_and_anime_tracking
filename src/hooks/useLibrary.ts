@@ -2,16 +2,19 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { animeRepository } from '../db/anime.repository'
 import type { AnimeMetadata, LibraryEntry } from '../types/anime'
 
-type LibraryQueryResult = { entries: LibraryEntry[] } | { error: unknown }
+type LibraryQueryResult = { entries: LibraryEntry[]; watchedCounts: Map<number, number> } | { error: unknown }
 
 export type LibraryStatus = 'loading' | 'error' | 'ready'
 
-/** Biblioteca en vivo: se actualiza sola cuando cambia IndexedDB. */
+/** Biblioteca en vivo (con episodios vistos por anime): se actualiza sola cuando cambia IndexedDB. */
 export function useLibrary() {
   // Se captura el error dentro de la consulta para mostrarlo en pantalla en lugar de romper el render.
   const result = useLiveQuery<LibraryQueryResult>(async () => {
     try {
-      return { entries: await animeRepository.listLibrary() }
+      return {
+        entries: await animeRepository.listLibrary(),
+        watchedCounts: await animeRepository.getWatchedCounts(),
+      }
     } catch (error) {
       return { error }
     }
@@ -19,16 +22,24 @@ export function useLibrary() {
 
   let status: LibraryStatus = 'loading'
   let entries: LibraryEntry[] = []
+  let watchedCounts = new Map<number, number>()
   if (result) {
-    if ('entries' in result) {
+    if ('error' in result) {
+      status = 'error'
+    } else {
       status = 'ready'
       entries = result.entries
-    } else {
-      status = 'error'
+      watchedCounts = result.watchedCounts
     }
   }
 
-  const addAnime = (metadata: AnimeMetadata) => animeRepository.addToLibrary(metadata)
-
-  return { status, entries, addAnime }
+  return {
+    status,
+    entries,
+    watchedCounts,
+    addAnime: (metadata: AnimeMetadata) => animeRepository.addToLibrary(metadata),
+    setFavorite: (anilistId: number, favorite: boolean) =>
+      animeRepository.updateLibraryEntry(anilistId, { favorite }),
+    removeAnime: (anilistId: number) => animeRepository.removeFromLibrary(anilistId),
+  }
 }

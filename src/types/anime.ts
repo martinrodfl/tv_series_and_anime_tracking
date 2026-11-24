@@ -46,3 +46,12 @@ export interface AnimeDetail extends AnimeMetadata {
   description: string | null
   genres: string[]
 }
+
+/** Contenido del archivo de respaldo JSON. */
+export interface BackupData {
+  app: 'anime-tracker'
+  version: 1
+  exportedAt: string
+  library: LibraryEntry[]
+  watchedEpisodes: WatchedEpisode[]
+}

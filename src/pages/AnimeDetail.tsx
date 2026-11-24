@@ -15,12 +15,16 @@ import Typography from '@mui/material/Typography'
 import { useState } from 'react'
 import { Link as RouterLink, useParams } from 'react-router'
 import EpisodeTracker from '../components/EpisodeTracker'
+import FavoriteButton from '../components/FavoriteButton'
 import ProgressSummary from '../components/ProgressSummary'
+import RemoveAnimeButton from '../components/RemoveAnimeButton'
 import { useAnimeDetail } from '../hooks/useAnimeDetail'
 import { useAnimeTracking } from '../hooks/useAnimeTracking'
 import { USER_STATUSES, type AnimeMetadata } from '../types/anime'
 import { describeAiringStatus, describeAnime, getDisplayTitle, USER_STATUS_LABELS } from '../utils/anime'
-import { getAvailableEpisodes } from '../utils/progress'
+import { getAvailableEpisodes, shouldSuggestCompleted } from '../utils/progress'
+
+const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 interface Notice {
   severity: 'success' | 'error'
@@ -184,26 +188,90 @@ function AnimeDetailContent({ anilistId }: { anilistId: number }) {
 
           {tracking.status === 'ready' && entry && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <FormControl size="small" sx={{ maxWidth: 240 }}>
-                <InputLabel id="user-status-label">Estado</InputLabel>
-                <Select
-                  labelId="user-status-label"
-                  label="Estado"
-                  value={entry.userStatus}
-                  onChange={(event) => {
-                    const userStatus = USER_STATUSES.find((status) => status === event.target.value)
-                    if (userStatus) {
-                      void run(() => tracking.setUserStatus(userStatus), null, 'No se pudo cambiar el estado.')
-                    }
-                  }}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel id="user-status-label">Estado</InputLabel>
+                  <Select
+                    labelId="user-status-label"
+                    label="Estado"
+                    value={entry.userStatus}
+                    onChange={(event) => {
+                      const userStatus = USER_STATUSES.find((status) => status === event.target.value)
+                      if (userStatus) {
+                        void run(() => tracking.setUserStatus(userStatus), null, 'No se pudo cambiar el estado.')
+                      }
+                    }}
+                  >
+                    {USER_STATUSES.map((status) => (
+                      <MenuItem key={status} value={status}>
+                        {USER_STATUS_LABELS[status]}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 160 }}>
+                  <InputLabel id="rating-label">Puntuación</InputLabel>
+                  <Select
+                    labelId="rating-label"
+                    label="Puntuación"
+                    value={entry.rating === null ? 'none' : String(entry.rating)}
+                    onChange={(event) => {
+                      const rating = RATINGS.find((value) => String(value) === event.target.value) ?? null
+                      void run(() => tracking.setRating(rating), null, 'No se pudo cambiar la puntuación.')
+                    }}
+                  >
+                    <MenuItem value="none">Sin puntuar</MenuItem>
+                    {RATINGS.map((rating) => (
+                      <MenuItem key={rating} value={String(rating)}>
+                        {rating} / 10
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FavoriteButton
+                  favorite={entry.favorite}
+                  title={title}
+                  onToggle={(favorite) =>
+                    void run(() => tracking.setFavorite(favorite), null, 'No se pudo cambiar el favorito.')
+                  }
+                />
+
+                <Box sx={{ flexGrow: 1 }} />
+
+                <RemoveAnimeButton
+                  variant="text"
+                  title={title}
+                  watchedCount={tracking.watchedEpisodes.length}
+                  onRemove={() =>
+                    void run(
+                      () => tracking.removeAnime(),
+                      `«${title}» se quitó de la biblioteca.`,
+                      `No se pudo quitar «${title}» de la biblioteca.`,
+                    )
+                  }
+                />
+              </Box>
+
+              {shouldSuggestCompleted(entry, tracking.watchedEpisodes) && (
+                <Alert
+                  severity="success"
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() =>
+                        void run(() => tracking.setUserStatus('completed'), null, 'No se pudo cambiar el estado.')
+                      }
+                    >
+                      Marcar como completado
+                    </Button>
+                  }
                 >
-                  {USER_STATUSES.map((status) => (
-                    <MenuItem key={status} value={status}>
-                      {USER_STATUS_LABELS[status]}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  Viste todos los episodios. ¿Quieres marcar el anime como completado?
+                </Alert>
+              )}
 
               <ProgressSummary watchedCount={tracking.watchedEpisodes.length} available={available} />
 
@@ -222,6 +290,13 @@ function AnimeDetailContent({ anilistId }: { anilistId: number }) {
                     () => tracking.unmarkEpisode(episodeNumber),
                     null,
                     `No se pudo desmarcar el episodio ${episodeNumber}.`,
+                  )
+                }
+                onMarkUpTo={(episodeNumber) =>
+                  void run(
+                    () => tracking.markEpisodesUpTo(episodeNumber),
+                    null,
+                    `No se pudieron marcar los episodios hasta el ${episodeNumber}.`,
                   )
                 }
               />

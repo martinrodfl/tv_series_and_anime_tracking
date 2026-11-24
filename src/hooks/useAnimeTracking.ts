@@ -51,7 +51,11 @@ export function useAnimeTracking(anilistId: number, freshMetadata: AnimeMetadata
     watchedEpisodes,
     addAnime: (metadata: AnimeMetadata) => animeRepository.addToLibrary(metadata),
     setUserStatus: (userStatus: UserStatus) => animeRepository.updateLibraryEntry(anilistId, { userStatus }),
+    setFavorite: (favorite: boolean) => animeRepository.updateLibraryEntry(anilistId, { favorite }),
+    setRating: (rating: number | null) => animeRepository.updateLibraryEntry(anilistId, { rating }),
+    removeAnime: () => animeRepository.removeFromLibrary(anilistId),
     markEpisode: (episodeNumber: number) => animeRepository.markEpisodeWatched(anilistId, episodeNumber),
+    markEpisodesUpTo: (episodeNumber: number) => animeRepository.markEpisodesUpTo(anilistId, episodeNumber),
     unmarkEpisode: (episodeNumber: number) => animeRepository.unmarkEpisodeWatched(anilistId, episodeNumber),
   }
 }

@@ -2,7 +2,7 @@
 
 Plan por etapas. Se implementa una a la vez y cada etapa debe quedar ejecutable. Las reglas permanentes del proyecto están en `.github/copilot-instructions.md`.
 
-**Etapa actual:** 5
+**Etapa actual:** 6
 
 ## Objetivo del MVP
 
@@ -68,10 +68,13 @@ No invertir tiempo en animaciones ni diseño sofisticado hasta que lo funcional 
 
 ## Etapa 5 — Funcionalidades complementarias
 
-- [ ] Favoritos y puntuación personal.
-- [ ] Filtros y ordenamiento en la biblioteca.
-- [ ] Inicio con resumen.
-- [ ] Exportación e importación JSON con validación y confirmación.
+- [x] Favoritos y puntuación personal.
+- [x] Quitar un anime de la biblioteca (desde el detalle y la biblioteca). Si tiene progreso registrado, pedir confirmación; se borran también sus episodios vistos (el repositorio ya lo hace en una transacción).
+- [x] Marcar varios episodios a la vez (p. ej. «marcar hasta el episodio N») en series largas. Operación idempotente y en una transacción; no cuenta episodios futuros.
+- [x] Sugerir pasar a `completed` cuando el total es conocido, el anime no está en emisión y todos los episodios están vistos. Solo se sugiere: nunca se cambia el estado automáticamente.
+- [x] Filtros y ordenamiento en la biblioteca.
+- [x] Inicio con resumen.
+- [x] Exportación e importación JSON con validación y confirmación.
 
 ## Etapa 6 — PWA
 

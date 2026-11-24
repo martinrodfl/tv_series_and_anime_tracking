@@ -1,5 +1,36 @@
 import { describe, expect, it } from 'vitest'
-import { calculateProgress, getAvailableEpisodes } from './progress'
+import { calculateProgress, describeProgress, getAvailableEpisodes, shouldSuggestCompleted } from './progress'
+
+describe('describeProgress', () => {
+  it('muestra vistos / disponibles y el porcentaje', () => {
+    expect(describeProgress(3, 12)).toBe('3 / 12 (25 %)')
+    expect(describeProgress(0, 0)).toBe('0 / 0 (0 %)')
+  })
+
+  it('indica que no está disponible si no se conoce el total', () => {
+    expect(describeProgress(4, null)).toBe('Progreso no disponible')
+  })
+})
+
+describe('shouldSuggestCompleted', () => {
+  const finished = { userStatus: 'watching' as const, episodes: 3, nextEpisode: null, airingStatus: 'FINISHED' }
+
+  it('sugiere cuando están vistos todos los episodios de un anime terminado', () => {
+    expect(shouldSuggestCompleted(finished, [1, 2, 3])).toBe(true)
+  })
+
+  it('no sugiere si falta algún episodio, aunque haya el mismo número de vistos', () => {
+    expect(shouldSuggestCompleted(finished, [1, 2])).toBe(false)
+    expect(shouldSuggestCompleted(finished, [1, 2, 4])).toBe(false)
+  })
+
+  it('no sugiere si ya está completado, está en emisión o no se conoce el total', () => {
+    expect(shouldSuggestCompleted({ ...finished, userStatus: 'completed' }, [1, 2, 3])).toBe(false)
+    expect(shouldSuggestCompleted({ ...finished, airingStatus: 'RELEASING', nextEpisode: 4 }, [1, 2, 3])).toBe(false)
+    expect(shouldSuggestCompleted({ ...finished, airingStatus: 'RELEASING' }, [1, 2, 3])).toBe(false)
+    expect(shouldSuggestCompleted({ ...finished, episodes: null }, [1, 2, 3])).toBe(false)
+  })
+})
 
 describe('getAvailableEpisodes', () => {
   it('usa el total cuando el anime no tiene próximo episodio', () => {

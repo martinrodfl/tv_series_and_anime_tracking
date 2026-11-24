@@ -13,9 +13,11 @@ import { describeAnime, getDisplayTitle } from '../utils/anime'
 interface AnimeCardProps {
   anime: AnimeMetadata
   action?: ReactNode
+  /** Contenido extra bajo el subtítulo (p. ej. el progreso). */
+  children?: ReactNode
 }
 
-export default function AnimeCard({ anime, action }: AnimeCardProps) {
+export default function AnimeCard({ anime, action, children }: AnimeCardProps) {
   const title = getDisplayTitle(anime)
 
   return (
@@ -45,6 +47,7 @@ export default function AnimeCard({ anime, action }: AnimeCardProps) {
           <Typography variant="body2" color="text.secondary">
             {describeAnime(anime)}
           </Typography>
+          {children}
         </CardContent>
         {action && <CardActions>{action}</CardActions>}
       </Box>
