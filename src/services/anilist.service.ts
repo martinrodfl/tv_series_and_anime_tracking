@@ -1,4 +1,11 @@
-import type { AnimeDetail, AnimeMetadata, SearchPage } from '../types/anime'
+import type {
+  AnimeDates,
+  AnimeDetail,
+  AnimeMetadata,
+  AnimeSearchResult,
+  PartialDate,
+  SearchPage,
+} from '../types/anime'
 
 const ANILIST_ENDPOINT = 'https://graphql.anilist.co'
 
@@ -15,6 +22,8 @@ query ($search: String!, $page: Int!, $perPage: Int!) {
       nextAiringEpisode { episode }
       status
       format
+      startDate { year month day }
+      endDate { year month day }
     }
   }
 }`
@@ -31,6 +40,8 @@ query ($id: Int!) {
     nextAiringEpisode { episode }
     status
     format
+    startDate { year month day }
+    endDate { year month day }
   }
 }`
 
@@ -97,13 +108,35 @@ function parseMedia(media: unknown): AnimeMetadata | null {
   }
 }
 
+// Las fechas de AniList son opcionales y pueden venir incompletas: sin año no hay fecha; el día exige el mes.
+function parsePartialDate(value: unknown): PartialDate | null {
+  if (!isRecord(value)) return null
+  const year = asPositiveInteger(value.year)
+  if (year === null) return null
+  const month = typeof value.month === 'number' && Number.isInteger(value.month) && value.month >= 1 && value.month <= 12 ? value.month : null
+  const day =
+    month !== null && typeof value.day === 'number' && Number.isInteger(value.day) && value.day >= 1 && value.day <= 31
+      ? value.day
+      : null
+  return { year, month, day }
+}
+
+function parseDates(media: Record<string, unknown>): AnimeDates {
+  return { startDate: parsePartialDate(media.startDate), endDate: parsePartialDate(media.endDate) }
+}
+
+function parseSearchResult(media: unknown): AnimeSearchResult | null {
+  const metadata = parseMedia(media)
+  return metadata && isRecord(media) ? { ...metadata, ...parseDates(media) } : null
+}
+
 function parseSearchPage(body: unknown, requestedPage: number): SearchPage {
   const page = isRecord(body) && isRecord(body.data) ? body.data.Page : undefined
   if (!isRecord(page) || !Array.isArray(page.media) || !isRecord(page.pageInfo)) {
     throw new AniListError('invalid-response', 'AniList devolvió una respuesta inesperada.')
   }
   return {
-    items: page.media.map(parseMedia).filter((item): item is AnimeMetadata => item !== null),
+    items: page.media.map(parseSearchResult).filter((item): item is AnimeSearchResult => item !== null),
     page: asPositiveInteger(page.pageInfo.currentPage) ?? requestedPage,
     hasNextPage: page.pageInfo.hasNextPage === true,
   }
@@ -129,7 +162,7 @@ function parseDetail(body: unknown): AnimeDetail {
   const genres = Array.isArray(media.genres)
     ? media.genres.map(asString).filter((genre): genre is string => genre !== null)
     : []
-  return { ...metadata, description: toPlainText(asString(media.description)), genres }
+  return { ...metadata, ...parseDates(media), description: toPlainText(asString(media.description)), genres }
 }
 
 // Una respuesta HTTP exitosa también puede traer `errors` de GraphQL.

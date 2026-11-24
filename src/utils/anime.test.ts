@@ -1,5 +1,60 @@
 import { describe, expect, it } from 'vitest'
-import { coverImageUrl, describeAiringStatus, describeAnime, getDisplayTitle, hasSameMetadata } from './anime'
+import {
+  coverImageUrl,
+  describeAiringDates,
+  describeAiringStatus,
+  describeAnime,
+  describePeriod,
+  formatPartialDate,
+  getDisplayTitle,
+  hasSameMetadata,
+} from './anime'
+
+describe('formatPartialDate', () => {
+  it('muestra solo lo que AniList informa', () => {
+    expect(formatPartialDate({ year: 2023, month: 9, day: 29 })).toBe('29 sep 2023')
+    expect(formatPartialDate({ year: 2023, month: 1, day: null })).toBe('ene 2023')
+    expect(formatPartialDate({ year: 2023, month: null, day: null })).toBe('2023')
+  })
+})
+
+describe('describePeriod', () => {
+  const date = (year: number) => ({ year, month: null, day: null })
+
+  it('muestra el rango de años, o un solo año si empieza y termina el mismo', () => {
+    expect(describePeriod({ startDate: date(2023), endDate: date(2024) }, 'FINISHED')).toBe('2023–2024')
+    expect(describePeriod({ startDate: date(2024), endDate: date(2024) }, 'FINISHED')).toBe('2024')
+  })
+
+  it('indica «en emisión» solo si se está emitiendo y no hay fecha de fin', () => {
+    expect(describePeriod({ startDate: date(2023), endDate: null }, 'RELEASING')).toBe('2023 – en emisión')
+    expect(describePeriod({ startDate: date(2023), endDate: null }, 'FINISHED')).toBe('2023')
+  })
+
+  it('devuelve null sin año de estreno, sin inventar nada', () => {
+    expect(describePeriod({ startDate: null, endDate: date(2024) }, 'FINISHED')).toBeNull()
+  })
+})
+
+describe('describeAiringDates', () => {
+  const day = { year: 2024, month: 7, day: 12 }
+
+  it('da estreno y finalización cuando son distintos', () => {
+    expect(describeAiringDates({ startDate: day, endDate: { year: 2024, month: 9, day: 27 } })).toEqual({
+      start: '12 jul 2024',
+      end: '27 sep 2024',
+    })
+  })
+
+  it('omite la finalización si no existe o coincide con el estreno', () => {
+    expect(describeAiringDates({ startDate: day, endDate: null })).toEqual({ start: '12 jul 2024', end: null })
+    expect(describeAiringDates({ startDate: day, endDate: { ...day } })).toEqual({ start: '12 jul 2024', end: null })
+  })
+
+  it('no inventa fechas ausentes', () => {
+    expect(describeAiringDates({ startDate: null, endDate: null })).toEqual({ start: null, end: null })
+  })
+})
 
 describe('coverImageUrl', () => {
   it('añade el parámetro cors sin alterar el resto de la URL', () => {

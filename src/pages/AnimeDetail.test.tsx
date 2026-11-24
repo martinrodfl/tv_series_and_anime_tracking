@@ -27,6 +27,8 @@ const detailOf = (overrides: Partial<AnimeDetailData> = {}): AnimeDetailData => 
   nextEpisode: null,
   description: 'Una elfa.\n\nSegundo párrafo.',
   genres: ['Adventure', 'Drama'],
+  startDate: { year: 2023, month: 9, day: 29 },
+  endDate: { year: 2024, month: 3, day: 22 },
   ...overrides,
 })
 
@@ -56,6 +58,7 @@ describe('/anime/:id', () => {
     renderDetail()
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Frieren' })).toBeInTheDocument()
+    expect(screen.getByText('Estreno: 29 sep 2023 · Finalización: 22 mar 2024')).toBeInTheDocument()
     expect(screen.getByText('Sousou no Frieren')).toBeInTheDocument()
     expect(screen.getByText('Adventure')).toBeInTheDocument()
     expect(screen.getByText(/Una elfa\./)).toBeInTheDocument()
@@ -66,6 +69,33 @@ describe('/anime/:id', () => {
 
     expect(await screen.findByRole('combobox', { name: 'Estado' })).toHaveTextContent('Planeado')
     expect(await animeRepository.getLibraryEntry(10)).toBeDefined()
+  })
+
+  it('no muestra fechas que AniList no informa, ni la finalización de un anime en emisión', async () => {
+    getAnimeById.mockResolvedValue(
+      detailOf({ airingStatus: 'RELEASING', startDate: { year: 2026, month: null, day: null }, endDate: null }),
+    )
+    renderDetail()
+
+    expect(await screen.findByText('Estreno: 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/Finalización/)).not.toBeInTheDocument()
+  })
+
+  it('no muestra ninguna línea de fechas si AniList no trae ninguna', async () => {
+    getAnimeById.mockResolvedValue(detailOf({ startDate: null, endDate: null }))
+    renderDetail()
+
+    await screen.findByRole('heading', { level: 1, name: 'Frieren' })
+    expect(screen.queryByText(/Estreno/)).not.toBeInTheDocument()
+  })
+
+  it('omite la finalización cuando coincide con el estreno (películas)', async () => {
+    const date = { year: 2024, month: 7, day: 12 }
+    getAnimeById.mockResolvedValue(detailOf({ format: 'MOVIE', startDate: date, endDate: date }))
+    renderDetail()
+
+    expect(await screen.findByText('Estreno: 12 jul 2024')).toBeInTheDocument()
+    expect(screen.queryByText(/Finalización/)).not.toBeInTheDocument()
   })
 
   it('marca y desmarca episodios y el progreso se actualiza', async () => {

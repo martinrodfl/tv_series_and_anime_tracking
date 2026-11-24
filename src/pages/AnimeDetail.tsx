@@ -23,6 +23,7 @@ import { useNotice } from '../hooks/useNotice'
 import { USER_STATUSES, type AnimeMetadata } from '../types/anime'
 import {
   coverImageUrl,
+  describeAiringDates,
   describeAiringStatus,
   describeAnime,
   getDisplayTitle,
@@ -74,6 +75,8 @@ function AnimeDetailContent({ anilistId }: { anilistId: number }) {
   const { entry } = tracking
   // Datos de AniList si llegaron; si no (p. ej. sin conexión), los guardados en la biblioteca.
   const info: AnimeMetadata | null = remote ?? entry ?? null
+  // Las fechas no se guardan en la biblioteca: solo hay si AniList respondió.
+  const airingDates = remote ? describeAiringDates(remote) : null
   const title = info ? getDisplayTitle(info) : 'Detalle del anime'
   const available = info ? getAvailableEpisodes(info) : null
 
@@ -132,6 +135,16 @@ function AnimeDetailContent({ anilistId }: { anilistId: number }) {
               {describeAiringStatus(info.airingStatus) && <Chip label={describeAiringStatus(info.airingStatus)} />}
               {remote?.genres.map((genre) => <Chip key={genre} label={genre} variant="outlined" />)}
             </Box>
+            {airingDates && (airingDates.start || airingDates.end) && (
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                {[
+                  airingDates.start && `Estreno: ${airingDates.start}`,
+                  airingDates.end && `Finalización: ${airingDates.end}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Typography>
+            )}
             {remote ? (
               <Typography sx={{ whiteSpace: 'pre-line' }}>
                 {remote.description ?? 'AniList no tiene descripción para este anime.'}

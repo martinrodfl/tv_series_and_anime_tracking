@@ -26,6 +26,8 @@ describe('searchAnime', () => {
             nextAiringEpisode: { episode: 1100 },
             status: 'RELEASING',
             format: 'TV',
+            startDate: { year: 1999, month: 10, day: 20 },
+            endDate: { year: null, month: null, day: null },
           },
         ]),
       ),
@@ -49,6 +51,8 @@ describe('searchAnime', () => {
           airingStatus: 'RELEASING',
           episodes: null,
           nextEpisode: 1100,
+          startDate: { year: 1999, month: 10, day: 20 },
+          endDate: null,
         },
       ],
     })
@@ -70,8 +74,24 @@ describe('searchAnime', () => {
         airingStatus: null,
         episodes: null,
         nextEpisode: null,
+        startDate: null,
+        endDate: null,
       },
     ])
+  })
+
+  it.each([
+    ['año, mes y día', { year: 2023, month: 9, day: 29 }, { year: 2023, month: 9, day: 29 }],
+    ['solo año y mes', { year: 2023, month: 9, day: null }, { year: 2023, month: 9, day: null }],
+    ['solo año', { year: 2023, month: null, day: null }, { year: 2023, month: null, day: null }],
+    ['día sin mes (se descarta el día)', { year: 2023, month: null, day: 5 }, { year: 2023, month: null, day: null }],
+    ['mes fuera de rango', { year: 2023, month: 13, day: 5 }, { year: 2023, month: null, day: null }],
+    ['sin año', { year: null, month: 9, day: 29 }, null],
+    ['campo ausente', undefined, null],
+    ['valor que no es objeto', '2023-09-29', null],
+  ])('valida las fechas de emisión: %s', async (_name, raw, expected) => {
+    const { service } = serviceWith(async () => jsonResponse(pageBody([{ id: 1, startDate: raw }])))
+    expect((await service.searchAnime('x')).items[0].startDate).toEqual(expected)
   })
 
   it('no consulta la API con un texto vacío', async () => {
@@ -144,6 +164,8 @@ describe('getAnimeById', () => {
     nextAiringEpisode: null,
     status: 'FINISHED',
     format: 'TV',
+    startDate: { year: 2023, month: 9, day: 29 },
+    endDate: { year: 2024, month: 3, day: 22 },
   }
 
   it('pide el anime por id y devuelve metadatos, géneros y descripción en texto plano', async () => {
@@ -161,6 +183,8 @@ describe('getAnimeById', () => {
       airingStatus: 'FINISHED',
       episodes: 28,
       nextEpisode: null,
+      startDate: { year: 2023, month: 9, day: 29 },
+      endDate: { year: 2024, month: 3, day: 22 },
       genres: ['Adventure', 'Drama'],
       description: 'Primera línea.\n\n(Fuente: Alguien)',
     })

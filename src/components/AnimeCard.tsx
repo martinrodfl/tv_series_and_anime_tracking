@@ -12,12 +12,14 @@ import { coverImageUrl, describeAnime, getDisplayTitle } from '../utils/anime'
 
 interface AnimeCardProps {
   anime: AnimeMetadata
+  /** Periodo de emisión ya formateado (p. ej. «2023–2024»), si se conoce. */
+  period?: string | null
   action?: ReactNode
   /** Contenido extra bajo el subtítulo (p. ej. el progreso). */
   children?: ReactNode
 }
 
-export default function AnimeCard({ anime, action, children }: AnimeCardProps) {
+export default function AnimeCard({ anime, period, action, children }: AnimeCardProps) {
   const title = getDisplayTitle(anime)
 
   return (
@@ -47,7 +49,7 @@ export default function AnimeCard({ anime, action, children }: AnimeCardProps) {
             </Link>
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {describeAnime(anime)}
+            {[describeAnime(anime), period].filter(Boolean).join(' · ')}
           </Typography>
           {children}
         </CardContent>

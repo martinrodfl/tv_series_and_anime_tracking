@@ -8,7 +8,7 @@ import { darkTheme } from '../app/theme'
 import { animeRepository } from '../db/anime.repository'
 import { db } from '../db/database'
 import * as anilist from '../services/anilist.service'
-import type { AnimeMetadata, SearchPage } from '../types/anime'
+import type { AnimeSearchResult, SearchPage } from '../types/anime'
 import Library from './Library'
 import Search from './Search'
 
@@ -19,7 +19,7 @@ vi.mock('../services/anilist.service', async (importOriginal) => ({
 
 const searchAnime = vi.mocked(anilist.searchAnime)
 
-const frieren: AnimeMetadata = {
+const frieren: AnimeSearchResult = {
   anilistId: 154587,
   title: { romaji: 'Sousou no Frieren', english: 'Frieren: Beyond Journey’s End' },
   coverUrl: null,
@@ -27,9 +27,11 @@ const frieren: AnimeMetadata = {
   airingStatus: 'FINISHED',
   episodes: 28,
   nextEpisode: null,
+  startDate: { year: 2023, month: 9, day: 29 },
+  endDate: { year: 2024, month: 3, day: 22 },
 }
 
-const page = (items: AnimeMetadata[], overrides: Partial<SearchPage> = {}): SearchPage => ({
+const page = (items: AnimeSearchResult[], overrides: Partial<SearchPage> = {}): SearchPage => ({
   items,
   page: 1,
   hasNextPage: false,
@@ -70,6 +72,7 @@ describe('/search', () => {
 
     await search(user, 'frieren')
     expect(await screen.findByText('Frieren: Beyond Journey’s End')).toBeInTheDocument()
+    expect(screen.getByText('TV · 28 episodios · 2023–2024')).toBeInTheDocument()
     expect(searchAnime).toHaveBeenCalledWith('frieren', expect.objectContaining({ page: 1 }))
 
     await user.click(await screen.findByRole('button', { name: 'Agregar' }))

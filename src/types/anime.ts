@@ -35,13 +35,28 @@ export type LibraryEntryChanges = Partial<Pick<LibraryEntry, 'userStatus' | 'fav
 
 /** Una página de resultados de búsqueda, ya en tipos internos. */
 export interface SearchPage {
-  items: AnimeMetadata[]
+  items: AnimeSearchResult[]
   page: number
   hasNextPage: boolean
 }
 
+/** Fecha que AniList puede dar incompleta: siempre hay año; mes y día solo a veces. */
+export interface PartialDate {
+  year: number
+  month: number | null
+  day: number | null
+}
+
+/** Fechas de emisión; solo para mostrar, no se guardan en la biblioteca. */
+export interface AnimeDates {
+  startDate: PartialDate | null
+  endDate: PartialDate | null
+}
+
+export type AnimeSearchResult = AnimeMetadata & AnimeDates
+
 /** Datos para la pantalla de detalle; no se guardan en la biblioteca. */
-export interface AnimeDetail extends AnimeMetadata {
+export interface AnimeDetail extends AnimeMetadata, AnimeDates {
   /** Texto plano, sin HTML. */
   description: string | null
   genres: string[]

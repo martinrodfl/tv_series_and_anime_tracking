@@ -17,7 +17,7 @@ import { useAnimeSearch } from '../hooks/useAnimeSearch'
 import { useLibrary } from '../hooks/useLibrary'
 import { useNotice } from '../hooks/useNotice'
 import type { AnimeMetadata } from '../types/anime'
-import { getDisplayTitle } from '../utils/anime'
+import { describePeriod, getDisplayTitle } from '../utils/anime'
 
 function parsePage(value: string | null): number {
   const page = Number(value)
@@ -126,6 +126,7 @@ export default function Search() {
               <Grid key={anime.anilistId} size={{ xs: 12, md: 6 }}>
                 <AnimeCard
                   anime={anime}
+                  period={describePeriod(anime, anime.airingStatus)}
                   action={
                     addedIds.has(anime.anilistId) ? (
                       <Chip icon={<CheckIcon />} label="Ya agregado" color="success" variant="outlined" />

@@ -1,4 +1,4 @@
-import type { AnimeMetadata, UserStatus } from '../types/anime'
+import type { AnimeDates, AnimeMetadata, PartialDate, UserStatus } from '../types/anime'
 
 export const USER_STATUS_LABELS: Record<UserStatus, string> = {
   planned: 'Planeado',
@@ -57,4 +57,31 @@ const AIRING_STATUS_LABELS: Record<string, string> = {
 export function describeAiringStatus(status: string | null): string | null {
   if (status === null) return null
   return AIRING_STATUS_LABELS[status] ?? status
+}
+
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+/** «2023», «sep 2023» o «29 sep 2023», según lo que AniList informe. */
+export function formatPartialDate({ year, month, day }: PartialDate): string {
+  if (month === null) return String(year)
+  const monthText = MONTHS[month - 1]
+  return day === null ? `${monthText} ${year}` : `${day} ${monthText} ${year}`
+}
+
+const isSameDate = (a: PartialDate, b: PartialDate) => a.year === b.year && a.month === b.month && a.day === b.day
+
+/** Periodo compacto para tarjetas («2023–2024», «2023 – en emisión»); null si no se conoce el año de estreno. */
+export function describePeriod({ startDate, endDate }: AnimeDates, airingStatus: string | null): string | null {
+  if (!startDate) return null
+  if (endDate && endDate.year !== startDate.year) return `${startDate.year}–${endDate.year}`
+  if (!endDate && airingStatus === 'RELEASING') return `${startDate.year} – en emisión`
+  return String(startDate.year)
+}
+
+/** Fechas legibles para el detalle. La finalización se omite si no existe o coincide con el estreno (películas, OVA). */
+export function describeAiringDates({ startDate, endDate }: AnimeDates): { start: string | null; end: string | null } {
+  return {
+    start: startDate ? formatPartialDate(startDate) : null,
+    end: endDate && !(startDate && isSameDate(startDate, endDate)) ? formatPartialDate(endDate) : null,
+  }
 }
