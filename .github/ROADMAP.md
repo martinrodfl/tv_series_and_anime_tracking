@@ -2,7 +2,7 @@
 
 Plan por etapas. Se implementa una a la vez y cada etapa debe quedar ejecutable. Las reglas permanentes del proyecto están en `.github/copilot-instructions.md`.
 
-**Etapa actual:** 6
+**Etapa actual:** 6 (completa; MVP terminado)
 
 ## Objetivo del MVP
 
@@ -82,7 +82,7 @@ No invertir tiempo en animaciones ni diseño sofisticado hasta que lo funcional 
 - [x] Cachear los recursos de la aplicación.
 - [x] Definir una estrategia prudente para imágenes y recursos externos: solo portadas de `*.anilist.co` (https, con CORS), máximo 150 y 30 días, solo respuestas 200; la API GraphQL nunca se cachea.
 - [x] Verificar funcionamiento offline.
-- [ ] Probar la instalación en escritorio y celular. (Chrome no reporta errores de manifest ni de instalabilidad; falta instalarla en un escritorio y un celular reales.)
+- [x] Probar la instalación en escritorio y celular. (Instalada desde GitHub Pages; Chrome no reporta errores de manifest ni de instalabilidad.)
 
 ## Criterios de aceptación del MVP
 
